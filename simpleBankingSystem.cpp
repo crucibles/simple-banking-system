@@ -110,7 +110,7 @@ main(){
 	
 	gotoxy(15,15);
 	system("color 2");
-	printf("Loading:");
+	printf("Loading: ");
 	
 	for(i=23;i<=56;i++){
 		gotoxy(i,15);
