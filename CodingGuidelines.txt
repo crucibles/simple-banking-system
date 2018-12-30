@@ -1,0 +1,159 @@
+# Coding Guidelines
+***
+This document contains the coding guidelines for the Simple Banking System Program. It contains the following sections:
+## Index
+- Comment Headers
+- Casing
+- Indentation
+- Braces Placement
+- Spaces Placement
+- Whitespaces Placement
+- Multiple Parameters
+
+## Comment Headers
+Function comment headers are found just above the function it describes. It must contain the function description, author (with date creation). Function parameters, return, & latest author who modified. Comments starts after the '/**' and are indented.
+A complete example with the correct order are shown below:
+```sh
+/**
+    Divides the dividend by the divisor.
+    @params
+        dividend - the number to be divide
+        divisor - the number that will divide the dividend
+    @returns 
+        The quotient of the operation
+        
+    @author Bruce Wayne (12/31/2018)
+    @modified Chuck Norris (01/15/2018)
+        - (FROM) quotient = divident * divisor;
+        - (TO) quotient = divident / divisor;
+        - Reason: wrong operation used
+    @modified Bruce Wayne (01/26/2018)
+        - (FROM) quotient = divident / divisor;
+        - (TO) quotient = dividend / divisor;
+        - Reason: variable typo (edited the rest of the variables with similar mistakes)
+*/
+float division(int dividend, int divisor){
+```
+Note that @params, @returns, and @modified are placed only if applicable. 
+## Casing
+All names such as function names, identifiers, etc. should use the camel casing with the first word of the compound words or phrases starting with the lowercase letter while the rest starts with a capital letter.
+The *struct* name, however, shall start with a capital letter.
+```sh
+struct Example{
+    int identifierExample;
+};
+
+void methodExample(){
+    float identifierExample;
+    ...
+}
+```
+## Identation
+Statements inside the block of code are one identation from its container.
+```sh
+switch(someVariable){
+    case 1:
+        ...
+    case 2:
+        ...
+}
+```
+## Placement of Braces 
+Opening braces should be in the same line as the methods, control blocks, type, etc.
+```sh
+methodExample(){
+    switch(someVariable){
+        ...
+    }   
+}
+```
+## Placement of Spaces
+There should be spaces between operator and operands in expression
+Good:
+```sh
+operandOne = operandTwo + operandThree;
+```
+Not good:
+```sh
+operandOne=operandTwo+operandThree;
+```
+... except for unary operators.
+Good:
+```sh
+operand++;
+```
+Not good:
+```sh
+operand ++;
+```
+Spaces should be placed after comma (e.g. inside function params & arguments or in declarations) but not surrounding the parameters or arguments.
+Good:
+```sh
+int one, two, three;
+...
+printf("%d %d %d", one, two, three);
+methodExample(x, y);
+```
+Not good:
+```sh
+int one,two,three;
+...
+printf("%d %d %d",one,two,three);
+methodExample(x,y);
+```
+Not so good:
+```sh
+...
+methodExample( x, y );
+```
+... as well as after semi-colon inside for-loop
+Good:
+```sh
+for(int i = 0; i < someCondition; i++){
+    ...
+```
+Not good:
+```sh
+for(int i = 0;i < someCondition;i++){
+    ...
+```
+Spaces after closing right braces if followed by a statement/expression/keyword.
+Good:
+```sh
+do{
+    if(someExpression){
+        ...    
+    } else if(someExpression){
+        ...
+    } else{
+        ...
+    }
+} while(someExpression);
+```
+Not good:
+```sh
+    ...
+    }else{
+        ...
+    }
+}while(someExpression);
+```
+...but there should be no spaces before the opening braces.
+Good:
+```sh
+if(someExpression){
+    ...
+```
+Not so good:
+```sh
+if(someExpression) {
+    ...
+```
+## Placement of Blankspaces
+There should be at most one blank space in between function & between statements
+```sh
+// at most one blank space in between statements
+statementOne(); 
+
+statementTwo();
+```
