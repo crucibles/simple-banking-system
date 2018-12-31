@@ -57,27 +57,27 @@ struct Account{
 	struct Date startDate;
 };
 
-int newAccNumber();
-char *newPin();
-int confirm();
-int count();
-void start();
-void menu();
-
 //GUI functions
 void gotoxy(int x, int y);
+void hline(int,int,int);
 void rect();
 void rect(int,int,int,int);
-void hline(int,int,int);
+void start();
+void menu();
 void vline(int,int,int);
 void loadingScreen();
 void deleteInput(int num);
 
 //General helper functions
+void convertDateStringToDate(char *dateString, int *month, int *day, int *year);
+int getLatestIdFromStorage(int type);
 int getUserInput();
 float getUserFloatInput();
 int *getUserDateInput();
 char* fgetsW(char* buffer, int bufferLength, FILE *fp);
+Date getSystemDate();
+int confirm();
+int count();
 
 //Account functions
 void createAccount();
@@ -87,18 +87,20 @@ Account getAccount();
 Account searchAccount(int accNumber);
 void updateAccount();
 //Account helper functions
+int getLatestAccountId();
+char *newPin();
 void postAccount(Account);
 void postAccountUpdate(struct Account currAccount);
 void updateMenu(Account currAccount);
 void updateProcess(int choice, struct Account currAccount);
 
 //Transaction Functions
-struct TransactionLog *getTransactionsOf(int accountNumber);
+struct TransactionLog *getTransactionsOf(int accNumber);
 void deposit();
 void depositAmountTo(float amount, int accNumber);
 void transactions();
 void transfer();
-void viewTransactionLogs();
+void displayTransactionLogs();
 void withdraw();
 
 //Transaction helper functions
@@ -106,7 +108,6 @@ void askAccNum();
 float calculateTransactionAmount(int transType, float amount);
 int checkBalance(float amount,int accountNum);
 Account getAccount(int accountNum);
-Date getDate();
 float getInterest(Account currAccount);
 int getLatestTransactionId();
 struct TransactionLog *getTransactions();
@@ -115,7 +116,7 @@ float getYearBalance(struct TransactionLog *transLog, Date startDate);
 void postTransaction(int accNumber);
 void postTransfer(Transaction newTransaction);
 void process(Transaction newTransaction);
-void updateTransId(int latestTransId);
+void updateIds(int latestTransId, int latestAccId);
 int validate();
 int withdrawAmountFrom(float, int);
 
@@ -128,7 +129,6 @@ int transactionIdCounter=getLatestTransactionId();
 int tellerPin=1234;
 
 main(){
-
 	loadingScreen();
 	start();
 	
@@ -137,13 +137,13 @@ main(){
 
 
 void loadingScreen(){
-	int i = 0,x = 1;
+	int x = 1;
 	
 	gotoxy(15,15);
 	system("color 2");
 	printf("Loading: ");
 	
-	for(i=23;i<=56;i++){
+	for(int i = 23;i <= 56; i++){
 		gotoxy(i,15);
 		Sleep(30);
         printf("\xB2");
@@ -159,11 +159,22 @@ void loadingScreen(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description checks date if it is valid
-	@params are the ones to be checked if it is valid in int format so Dec 12, 2018 is 12/12/2018 MM/DD/YY.
+	Checks date if it is valid.
+	The date is valid if...
+	- Years should be greater than 1900 OR less than 9999
+	- Months should be 1 <= m <= 12 where m = months
+	- Months of 30 should have 1 <= d <= 30 where d = days
+	- Months of 31 should have 1 <= d <= 31 where d = days
+	- February should be 1 <= d <= 28 OR 1 <= d <= 29, if normal or leap year respectively.
+	Otherwise, it will prompt user which part of the date is invalid
+	@params 
+		month - month of the date to be checked 
+		day - day of the date to be checked 
+		year - year of the date to be checked 
+	@return 
+		true if valid date; false if not
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 bool dateChecker(int month, int day, int year){
 	int mm = month, dd = day, yy = year;
@@ -196,10 +207,9 @@ bool dateChecker(int month, int day, int year){
 }
 
 /*
-	@author Cedric Alvaro
-
-	@description prints the transaction menu, and a list of choices. It will call those functions then.
+	Prints the transaction menu, and a list of choices. It will call those functions then.
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 void transactions(){
 	char choice;
@@ -215,12 +225,11 @@ void transactions(){
 	"[Note: -1 Main Menu] ==Enter your choice==");
 	
 	rect(4, 4, 77, 15);
-	
 	gotoxy(35,18);
 	choice = getUserInput();
     system("cls");
 
-    switch(choice) {
+    switch(choice){
 		case 1:
 	        withdraw();
 	        break;
@@ -241,88 +250,76 @@ void transactions(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will draw a rectangle
+	Draws a rectangle.
 	@params
-		x1 is the starting of the horizontal lines
-		x2 the end of the horizontal lines
-		y1 the starting of vertical lines
-		y2 the ending of vertical lines
+		x1 - the starting of the horizontal lines
+		x2 - the end of the horizontal lines
+		y1 - the starting of vertical lines
+		y2 - the ending of vertical lines
+		
+	@author Cedric Alvaro
 */
-void rect(int x1,int y1,int x2, int y2)
-{
-  /*printing corners*/
-  gotoxy(x2,y1);
-  printf("%c",191);
-  gotoxy(x1,y2);
-  printf("%c",192);
-  gotoxy(x2,y2);
-  printf("%c",217);
-  gotoxy(x1,y1);
-  printf("%c",218);
-  // printing lines
-  hline(x1+1,x2-1,y1);
-  hline(x1+1,x2-1,y2);
-  vline(y1+1,y2-1,x1);
-  vline(y1+1,y2-1,x2);
+void rect(int x1,int y1,int x2, int y2){
+  /* printing corners */
+  gotoxy(x2, y1);
+  printf("%c", 191);
+  gotoxy(x1, y2);
+  printf("%c", 192);
+  gotoxy(x2, y2);
+  printf("%c", 217);
+  gotoxy(x1, y1);
+  printf("%c", 218);
+  /* printing lines */
+  hline(x1 + 1, x2 - 1, y1);
+  hline(x1 + 1, x2 - 1, y2);
+  vline(y1 + 1, y2 - 1, x1);
+  vline(y1 + 1, y2 - 1, x2);
 }
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will draw a horizontal line
+	Draws a horizontal line. 
 	@params
-		x1 is the starting of the horizontal line
-		x2 is the end of the horizontal line
-		y the position base on y-axis where to put that horizontal line
-	
+		x1 - the starting of the horizontal line
+		x2 - the end of the horizontal line
+		y - the position base on y-axis where to put that horizontal line
+		
+	@author Cedric Alvaro (12/28/2018)
 */
-void hline(int x1,int x2,int y)
-{
-  int i;
-  for(i=x1;i<=x2;i++)
-  {
-    gotoxy(i,y);
-    printf("%c",196);
-  }
-}
-
-
-/*
-	@author Cedric Alvaro
-
-	@description It will draw a vertical line
-	@params
-		y1 is the starting of the vertical line
-		y2 is the end of the vertical line
-		x is the position base on x-axis where to put that vertical line
-	
-*/
-void vline(int y1,int y2,int x)
-{
-  int i;
-  for(i=y1;i<=y2;i++)
-  {
-    gotoxy(x,i);
-    printf("%c",179);
-  }
+void hline(int x1, int x2, int y){
+	for(int i = x1; i <= x2; i++){
+		gotoxy(i, y);
+		printf("%c", 196);
+	}
 }
 
 /*
+	Draws a vertical line.
+	@params
+		y1 - the starting of the vertical line
+		y2 - the end of the vertical line
+		x - the position base on x-axis where to put that vertical line
+		
 	@author Cedric Alvaro
+*/
+void vline(int y1, int y2, int x){
+	for(int i = y1; i <= y2; i++){
+    	gotoxy(x, i);
+		printf("%c", 179);
+	}
+}
 
-	@description It will print a series of actions for the teller/user to chhoose from.
-	It will then call those functions, for the processes.
+/*
+	Prints a series of actions for the teller/user to choose from.
+	The function will then called the functions necessary for the user's choice.
 	
+	@author Cedric Alvaro
 */
 void menu(){
 	int choice;
     system("cls");
     system("color 9");
-    
-    
+       
     printf("\n\n\t\t\tSIMPLE BANKING MANAGEMENT SYSTEM");
     printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 WELCOME TO THE MAIN MENU \xB2\xB2\xB2\xB2\xB2\xB2\xB2");
     printf("\n\n\t\t"
@@ -358,7 +355,7 @@ void menu(){
 	    	closeAccount();
 	     	break;
 	    case 6:
-	    	viewTransactionLogs();
+	    	displayTransactionLogs();
 	       	break;
 	    case 7:
 	       	start();
@@ -372,63 +369,63 @@ void menu(){
 
 
 /*
-	@author Cedric Alvaro
-	@modified Sumandang, AJ Ruth (12/30/2018)
-
-	@description It will ask the teller to input the manager password for role-locked actions such as delete, etc.
-	@returns an integer that will determin if the inputted password is correct.
+	Asks the teller to input the manager password for role-locked actions such as delete, etc.
+	@returns 
+		An integer that will determine if the inputted password is correct.
 		1 : true
 		0: false
 	
+	@author Cedric Alvaro (12/28/2018)
+	@modified Sumandang, AJ Ruth (12/30/2018)
+		- (FROM) while(input != '\r'){...}
+		- (TO) do{...}while(input != '\r')
+		- Reason(s): To remove the double input from user.
 */
 int confirm(){
-	
 	char password[] = "manager";
 	char *pass = new char[1024];
-    int i=0, tries=3;
+    int i = 0, tries = 3;
 
-    
     while(tries > 0){
 	    system("cls");
 		printf("\n\n\t\t\tSIMPLE BANKING MANAGEMENT SYSTEM");
 		system("color 6");
 		rect(5, 7, 75, 15);
-		gotoxy(20,10);
+		gotoxy(20, 10);
 		printf("\tPassword to confirm this action: ");
 		
 		char input = getch();
-		while (input != '\r' && i<=10)
+		while (input != '\r' && i <= 10)
 		{
 			if (!(input == 127 || input == 8)) {
 				printf("*");
 				pass[i] = input;
 				i++;
-			} else if (i!=0){
+			} else if (i != 0){
 				printf("\b \b");
 				i--;
 			}
 			input = getch();
 		}
-		pass[i]='\0';
+		pass[i] = '\0';
 
 	
-		if (strcmp(pass,password)==0){
-    	gotoxy(24,18);
+		if (strcmp(pass, password) == 0){
+    	gotoxy(24, 18);
     	
 		printf("Processing ");
-		for(i=0;i<=6;i++){
+		for(i = 0; i <= 6; i++){
 			Sleep(200);
             printf(".");
         }
-        printf("\n");
         
         return 1;
-	    } else {
+	    } else{
 	    	tries--;
-			gotoxy(25,19);
+			gotoxy(25, 19);
 			printf("Password is wrong! Remaining tries: %d", tries);
 		
-			for(i=0;i<=6;i++){
+			for(i = 0; i <= 6; i++){
 				Sleep(200);
 	            printf(".");
 	        }
@@ -440,11 +437,11 @@ int confirm(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will ask for the account number of the user to be deleted. It will auto withdraw all his/her balance, then closes the account.
-	Deleting the info from the accounts.in.
+	Asks for the account number of the user to be deleted. 
+	It deletes the info from the accounts.in.
+	It will also auto withdraw all his/her balance before closing the account.
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 void closeAccount(){
 	int remAcc;
@@ -452,10 +449,6 @@ void closeAccount(){
 	Account searchedAcc, user;
 	char choice;
 	char blank[100];
-	
-
-
-
     
     printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 CLOSING AN ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
     printf(" \tEnter the account no. of the user you want to delete: ");
@@ -472,13 +465,13 @@ void closeAccount(){
 		"\tYou cannot undo this action (Y/N): ");
 	    scanf("%c", &choice);
 	    
-	    if(choice == 'y' || choice=='Y' ){
+	    if(choice == 'y' || choice == 'Y' ){
 	    	
 	    	if (confirm() && withdrawAmountFrom(user.balance, user.accNumber)){
 	    		
-				FILE *fr,*newrec;
-	    		fr=fopen("account.in","r");
-	    		newrec=fopen("new_account.in","w");
+				FILE *fr, *newrec;
+	    		fr = fopen("account.in", "r");
+	    		newrec = fopen("new_account.in", "w");
 	    
 	    		while(counter > 1){
 					fgets(searchedAcc.firstName, 100, fr);
@@ -545,43 +538,42 @@ void closeAccount(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description Tells the teller to input his/her password first before he/she can use the system.
+	Tells the teller to input his/her password first before he/she can use the system.
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 void start(){
 	char pass[1024];
-	char password[]="teller";
-    int i=0, x=0, key;
+	char password[] = "teller";
+    int i = 0, x = 0, key;
     
 	printf("\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 SIMPLE BANKING MANAGEMENT SYSTEM \xB2\xB2\xB2\xB2\xB2\xB2\xB2");
 	system("color 6");
 	
 	rect(5, 7, 75, 15);
-	gotoxy(20,10);
+	gotoxy(20, 10);
 	printf("\tEnter the password to login: ");
 	
 	char input = getch();
-	while (input != '\r' && i<=10)
+	while (input != '\r' && i <= 10)
 	{
 		if (!(input == 127 || input == 8)) {
 			printf("*");
 			pass[i] = input;
 			i++;
-		} else if (i!=0){
+		} else if(i != 0){
 			printf("\b \b");
 			i--;
 		}
 		input = getch();
 	}
-	pass[i]='\0';
+	pass[i] = '\0';
 	
-    if (strcmp(pass,password)==0){
-    	gotoxy(24,18);
+    if(strcmp(pass, password) == 0){
+    	gotoxy(24, 18);
     	
 		printf("Preparing the system for you ");
-		for(i=0;i<=6;i++){
+		for(i = 0; i <= 6; i++){
 			Sleep(50);
             printf(".");
         }
@@ -589,9 +581,9 @@ void start(){
 		system("cls");
 		menu();
     } else {
-    	gotoxy(25,15);
+    	gotoxy(25, 15);
 		printf("Password is wrong! Input again.\n\n");
-		gotoxy(25,18);
+		gotoxy(25, 18);
 		system("pause");
 		system("cls");
 		start();
@@ -601,12 +593,12 @@ void start(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will move the cursor to that location
-	@param x is the x-axis (horizontal)
-	@param y is the y-axis (vertical)
-	
+	Moves the cursor to the given coordinates.
+	@params
+		x - the x-axis (horizontal)
+		y - the y-axis (vertical)
+		
+	@author Cedric Alvaro (12/28/2018)
 */
 void gotoxy(int x, int y){
 
@@ -614,21 +606,19 @@ void gotoxy(int x, int y){
 	if(!h){
 		h = GetStdHandle(STD_OUTPUT_HANDLE);
 	}
-	COORD c = { x, y };
-	SetConsoleCursorPosition(h,c);
+	COORD c = {x, y};
+	SetConsoleCursorPosition(h, c);
 }
 
-
 /*
-	@author Cedric Alvaro
-
-	@params accNumber this will be used and be searched in the account.in file
-	
-	@description It will find the line number of accNumber to be searched, 
+	Finds the line number of accNumber to be searched in the account file, 
 	since accNumber is the unique and unchangeable attribute in each bank account.
+	@params 
+		accNumber - used and searched in the account.in file
+	@returns 
+		the line number of that accNumber in accounts.in file
 	
-	@returns int that is the line number of that accNumber in accounts.in file
-	
+	@author Cedric Alvaro (12/28/2018)
 */
 int getAccNumLine(int accNumber){
 	int line = 0, an;
@@ -650,22 +640,23 @@ int getAccNumLine(int accNumber){
 
 
 /*
-	An fgtets wrapper function.
+	An fgets wrapper function.
 	It modifies the fgets function by removing the /n at the end (if it exists).
 	Takes the same parameters as fgets.
-	@param buffer 		the string to put edits
-	@param bufferLength	the length of buffer
-	@param file			file pointer
-	
-	@return the resulting string if successful; return null pointer constant, 0, if unsuccessful.
+	@param 
+		buffer - the string to put edits
+		bufferLength - the length of buffer
+		file - file pointer
+	@return 
+		the resulting string if successful; return null pointer constant, 0, if unsuccessful.
 	
 	@author Sumandang, AJ Ruth H. (12/28/2018)
 */
 char *fgetsW(char *buffer, int bufferLength, FILE *fp){
 	if (fgets(buffer, bufferLength, fp) != 0){
         int len = strlen(buffer);
-        if (len > 0 && buffer[len-1] == '\n'){
-        	buffer[len-1] = '\0';
+        if (len > 0 && buffer[len - 1] == '\n'){
+        	buffer[len - 1] = '\0';
 		}
         return buffer;
     }
@@ -674,12 +665,14 @@ char *fgetsW(char *buffer, int bufferLength, FILE *fp){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will search an account element from the list of accounts in accounts.in
-	@params accNumber is the account to be searched, since it is the unique attribute
-	@return a struct Account instance
-	
+	Searches an account element from the list of accounts in accounts.in.
+	@params 
+		accNumber - the account to be searched, since it is the unique attribute
+	@return 
+		A struct Account instance of the searched account; 
+		If not found, returns Account instance with accNumber = 0 (means not a valid account)
+		
+	@author Cedric Alvaro (12/28/2018)
 */
 Account searchAccount(int accNumber){
 	Account searchedAcc;
@@ -712,10 +705,9 @@ Account searchAccount(int accNumber){
 }
 
 /*
-	@author Cedric Alvaro
-
-	@description asks input accNumber to be shown as account
+	Asks input accNumber to be shown as account.
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 void askAccNum(){
 	int accNumber;
@@ -728,11 +720,10 @@ void askAccNum(){
 }
 
 /*
-	@author Cedric Alvaro
-
-	@description It will ask the teller to input the account number of the user, then searches it from the accounts.in
+	Asks the teller to input the account number of the user, then searches it from the accounts.in
 	It will then print the details of that account.
-	
+
+	@author Cedric Alvaro (12/28/2018)
 */
 void displayAcc(int accNumber){
 	Account user;
@@ -758,7 +749,7 @@ void displayAcc(int accNumber){
 			user.middleName, 
 			user.lastName, 
 			user.birthDate.month, user.birthDate.day, user.birthDate.year, 
-			user.balance, 
+			user.balance + getInterest(user), 
 			user.accType==0? "savings": "current", 
 			user.startDate.month, user.startDate.day, user.startDate.year, 
 			user.accNumber, 
@@ -774,10 +765,7 @@ void displayAcc(int accNumber){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will create an account for a user then writes its information to a file named "account.in".
-	
+	Creates an account for a user then writes its information to a file named "account.in".
 	The order of data is respectively:
 	firstName : string
 	middleName : string
@@ -788,7 +776,10 @@ void displayAcc(int accNumber){
 	startDate : struct Date
 	accNumber	:	int
 	pin	:	int
+	@params
+		add - the account to be added into the file
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 void postAccount(Account add){
 	FILE *fr;
@@ -806,46 +797,75 @@ void postAccount(Account add){
 	displayAcc(add.accNumber);
 }
 
+/**
+	Gets input date from user.
+	Includes error checking.
+	@returns 
+		array of date where...
+			date[0] -> month
+			date[1] -> day
+			date[2] -> year
+			
+	@author Cedric Alvaro (12/30/2018)
+	@modified AJ Ruth Sumandang (12/31/2018)
+		- Moved some of the code to convertDateStringToDate() for modularity
+*/
 int *getUserDateInput(){
 
-	int *date = new int[1024], i;
-	char s[2] = "/";
-    char *token;
+	int *date = new int[1024];
     char *input = new char[1024];
 
 	do{
 		date[0] = 0;
 		date[1] = 0;
 		date[2] = 0;
-				
-		i = 0;
 		
 		printf("\33[2K\r");
 		printf("\tPlease input a valid Date: ");
 		fgetsW(input, 100, stdin);
 		deleteInput(1);
 				
-		/* get the first token */
-	    token = strtok(input, s);
-			    
-	    /* walk through other tokens */
-	    while( token != NULL ) {
-			date[i] = atoi(token);
-		   	token = strtok(NULL, s);
-		   	i++;
-		}
-						    
+		convertDateStringToDate(input, &date[0], &date[1], &date[2]);			    
 	}while(!dateChecker(date[0], date[1], date[2]));
 	
 	return date;
 }
 
-/*
-	@author Cedric Alvaro
+/**
+	Converts the received datestring to date & puts the result in month, day, year variable.
+	@params
+		dateString - the string to be converted
+		month - where the month result of the datestring is to be placed
+		day - where the day result of the datestring is to be placed
+		year - where the year result of the datestring is to be placed
+		
+	@author Cedric Alvaro (12/30/2018)
+	@modified AJ Ruth Sumandang (12/31/2018)
+		- Moved this code from getUserDateInput for modularity
+*/
+void convertDateStringToDate(char *dateString, int *month, int *day, int *year){
+	int i = 0;
+	char s[2] = "/";
+    char *token;
+    int date[3];
+    
+	/* get the first token */
+	token = strtok(dateString, s);
+    /* walk through other tokens */
+    while( token != NULL ) {
+		date[i] = atoi(token);
+	   	token = strtok(NULL, s);
+	   	i++;
+	};
+	*month = date[0];
+	*day = date[1];
+	*year = date[2];
+}
 
-	@description asks for input to a new account
-	@return a struct Account instance
-	
+/*
+	Asks for input to a new account.
+		
+	@author Cedric Alvaro
 */
 void createAccount(){
 	Account add;
@@ -896,7 +916,7 @@ void createAccount(){
 			case 4:
 				do {
 					add.accType = getUserInput();
-					printf("\33[A");
+					printf("\033[A");
 				}while(add.accType != 0 && add.accType != 1);
 				printf("\n\n");
 				break;
@@ -920,7 +940,7 @@ void createAccount(){
 	add.startDate.day = atoi(&localDate[3]);
 	add.startDate.year = atoi(&localDate[6]);
 	
-	add.accNumber = newAccNumber();
+	add.accNumber = getLatestAccountId();
 	strcpy(add.pin, newPin());
 	printf("\n\t");
 	
@@ -932,39 +952,26 @@ void createAccount(){
 
 
 /*
-	@author Cedric Alvaro
-
-	@description It will find the next account number based on the last used account number then increments it by one.
-	@returns an integer that is the account number of a newly created account.
-	
+	Finds the next account number based on the last used account number then increments it by one.
+	@returns 
+		An integer that is the account number of a newly created account.
+		
+	@author Cedric Alvaro (12/28/2018)
+	@modified AJ Ruth Sumandang (12/28/2018)
+		- (FROM) obtaining the latest id by finding the latest account id in account.in
+		- (TO) storing the latest id in the Metadata.mt instead
+		- Reason: because if the system deletes the latest account, there would be a duplicate account #
 */
-int newAccNumber(){
-	FILE *fr;
-	fr = fopen("account.in", "r");
-	char *line = new char[1024];
-	int counter = 0;
-	int accNumber = 0;
-	
-	do{
-		if((counter - 7)%10 == 0 || counter-7 == 0){
-			fscanf(fr, "%d", &accNumber);
-		}
-		line = fgets(line, 100, fr);
-		counter ++;
-	} while(line != NULL);
-	
-	accNumber++;
-	
-	fclose(fr);
-	return accNumber;
+int getLatestAccountId(){
+	return getLatestIdFromStorage(2) + 1;
 }
 
 /*
-	@author Cedric Alvaro
-
-	@description It will generate a new pin based on the last pin used just incrementing it by one.
-	@returns an integer that will be the pin of a newly created account.
+	Generates a new pin based on the last pin used just incrementing it by one.
+	@returns 
+		An integer that will be the pin of a newly created account.
 	
+	@author Cedric Alvaro (12/28/2018)
 */
 char *newPin(){
 	FILE *fr;
@@ -976,7 +983,7 @@ char *newPin(){
 	do{
 		line = fgets(line, 100, fr);
 		counter ++;
-	}while(line != NULL);
+	} while(line != NULL);
 	
 	counter /= 10;
 	counter++;
@@ -988,11 +995,11 @@ char *newPin(){
 }
 
 /*
-	@author Cedric Alvaro
-
-	@description It will count how many users are there in the banking system
-	@returns an integer that is the account number of a new created account.
-	
+	Counts how many users are there in the banking system
+	@returns 
+		An integer that is the account number of a new created account.
+		
+	@author Cedric Alvaro (12/28/2018)
 */
 int count(){
 	FILE *fr;
@@ -1017,7 +1024,7 @@ int count(){
 	Updates an existing customer's account.
 	Contains all the function necessary for updating such as menu, update process, and looping.
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 void updateAccount(){
 	int choice;
@@ -1041,9 +1048,11 @@ void updateAccount(){
 
 /**
 	Contains the update-account menu.
-	Displays the options the user could choose from.
+	Displays the customer's current information that can be modified.
+	@params
+		currAccount - the account whose data is to be displayed.
 	
-	@author Sumandang, AJ Ruth (12/28/2018)	
+	@author AJ Ruth Sumandang (12/28/2018)	
 */
 void updateMenu(struct Account currAccount){
 
@@ -1060,10 +1069,11 @@ void updateMenu(struct Account currAccount){
 
 /**
 	Contains the processes necessary for updating current account.
-	@param choice user choice; (1) first name, (2) middle name, (3) last name, (4) birthdate, (5) PIN
-	@param contains the current account to be updated
+	@params 
+		choice - user choice; (1) first name, (2) middle name, (3) last name, (4) birthdate, (5) PIN
+		currAcount - variable containing the current account to be updated
 	
-	@author Sumandang, AJ Ruth H. (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 void updateProcess(int choice, struct Account currAccount){
 	char name[100];
@@ -1125,9 +1135,10 @@ void updateProcess(int choice, struct Account currAccount){
 
 /**
 	Updates the account file (account.in).
-	@param currAccount the account to be updated.
+	@param 
+		currAccount - the account to be updated.
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 void postAccountUpdate(struct Account currAccount){
 	
@@ -1193,7 +1204,7 @@ void postAccountUpdate(struct Account currAccount){
     fclose(fTemp);
     
     if(remove(accountFileName) != 0){
-    	printf("(Err1)Error in editing the file. Please contact developer for help.\n");
+    	printf("(Err1) Error in editing the file. Please contact developer for help.\n");
     	printf("|%s|\n", strerror(errno));
     	return;
 	} 
@@ -1206,18 +1217,22 @@ void postAccountUpdate(struct Account currAccount){
 /**
 	Retrieves the account number from the user.
 	If invalid input or non-existing account, prompts the user if they want to exit or input again.
+	@returns
+		Account instance; the searched account if found, but account of accNumber = 0 if input acc# is not found and user has given up.
+		
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 Account getAccount(){
 	int choice;
-	int accountNumber;
+	int accNumber;
 	Account currAccount;
     printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 UPDATING OF ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	do{
 		choice  = 0;
 		printf(" \tPlease input account number to update: ");
-		accountNumber = getUserInput();
-		currAccount = searchAccount(accountNumber);
+		accNumber = getUserInput();
+		currAccount = searchAccount(accNumber);
 	
 		if(currAccount.accNumber == 0){
 			printf(" \tInvalid input or the account does not exist. Do you want to input again or exit to main menu?\n");
@@ -1232,9 +1247,10 @@ Account getAccount(){
 
 /**
 	Retrieved user's input.
-	@return the user choice input
+	@returns
+		the user choice input
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 int getUserInput(){
 	int choice = 0;
@@ -1244,7 +1260,7 @@ int getUserInput(){
 	while(choice == 0){
 		
 		printf("\33[2K\r");
-		printf("\tPlease enter a valid number:");
+		printf("\tPlease enter a valid number: ");
 		choice = scanf("%d", &retval);
 		deleteInput(1);
 		
@@ -1287,9 +1303,9 @@ float getUserFloatInput(){
 	Allows the user to view an existing customer's transaction.
 	Contains the function necessary for viewing transaction logs such as getting transaction(in struct form).
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
-void viewTransactionLogs(){
+void displayTransactionLogs(){
 	TransactionLog *transactionLog;
 	Transaction transaction;
 	transactionLog = getTransactions();	
@@ -1314,13 +1330,15 @@ void viewTransactionLogs(){
 
 /**
 	Retrieves a customer's transaction from the files.
-	@return customer transaction logs (in struct Transaction form)
+	@returns 
+		customer transaction logs (in struct Transaction form)
 	
 	@author Sumandang, AJ Ruth (12/28/2018)
-	@modify Cedric Alvaro (12/30/2018) addded condition in while loop
+	@modify Cedric Alvaro (12/30/2018) a
+		- added condition in while loop
 */
 struct TransactionLog *getTransactions(){
-	int choice = 0, accountNumber;
+	int choice = 0, accNumber;
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
 	
@@ -1333,8 +1351,8 @@ struct TransactionLog *getTransactions(){
 	do{
 		choice = 0;
 		printf(" \tInput account number to view: ");
-		accountNumber = getUserInput();
-		transLog = getTransactionsOf(accountNumber);
+		accNumber = getUserInput();
+		transLog = getTransactionsOf(accNumber);
 		
 		if(transLog == NULL){
 			printf("\n\n \tInvalid input or non-existent account. Do you want to input again?\n");
@@ -1348,40 +1366,80 @@ struct TransactionLog *getTransactions(){
 	return transLog;
 }
 
-
-struct TransactionLog *getTransactionsOf(int accountNumber){
+/**
+	Gets the transaction logs of customer given an account #.
+	@params 
+		accNumber - the account # of the customer whose transaction logs are to be retrieved
+	@returns
+		An array of customer's transaction logs
+	
+	@author AJ Ruth Sumandang (12/28/2018)
+*/
+struct TransactionLog *getTransactionsOf(int accNumber){
 	FILE *fr;
 	char accountFileName[100];
 	
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
-	sprintf(accountFileName, "%d", accountNumber);
+	sprintf(accountFileName, "%d", accNumber);
 	strcat(accountFileName, ".tr");
 	
 	fr = fopen(accountFileName, "r");
 	
 	if(fr == NULL){
-		printf("FILE IS NULL");
+//		printf("(err3) File account %s not found.\n", accountFileName);
 		return NULL;
 	}
 	
 	char *line = new char[1024];
+	int i = 1;
 	struct Transaction transaction;
 	
-	do{
-		fscanf(fr, "%d", &transaction.transId);
-		fscanf(fr, "%d", &transaction.transType);
-		fscanf(fr, "%d", &transaction.accNumber);
-		fscanf(fr, "%d/%d/%d", &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
-		fscanf(fr, "%f", &transaction.amount);
-		fscanf(fr, "%d", &transaction.toAccount);
-		fgets(line, 100, fr);
-				
-		struct TransactionLog *newLog = new TransactionLog;
-		newLog->transaction = transaction;
-		newLog->next = transLog;
-		transLog = newLog;
-	} while(!feof(fr) && line != NULL);
+	while(fgetsW(line,BUFFER_SIZE, fr) != NULL){
+		switch(i){
+			case 1:
+    			transaction.transId = atoi(line);
+				break;
+			case 2:
+				transaction.transType = atoi(line);
+				break;
+			case 3:
+				transaction.accNumber = atoi(line);
+				break;
+			case 4:
+				convertDateStringToDate(line, &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
+				break;
+			case 5:
+				transaction.amount = atof(line);
+				break;
+			case 6:
+				transaction.toAccount = atoi(line);
+				break;
+			case 7:
+				struct TransactionLog *newLog = new TransactionLog;
+				newLog->transaction = transaction;
+				newLog->next = transLog;
+				transLog = newLog;
+				i = 0;
+				break;
+		}
+		i++;
+	}
+	
+//	do{
+//		fscanf(fr, "%d", &transaction.transId);
+//		fscanf(fr, "%d", &transaction.transType);
+//		fscanf(fr, "%d", &transaction.accNumber);
+//		fscanf(fr, "%d/%d/%d", &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
+//		fscanf(fr, "%f", &transaction.amount);
+//		fscanf(fr, "%d", &transaction.toAccount);
+//		fgets(line, 100, fr);
+//				
+//		struct TransactionLog *newLog = new TransactionLog;
+//		newLog->transaction = transaction;
+//		newLog->next = transLog;
+//		transLog = newLog;
+//	} while(!feof(fr) && line != NULL);
 	
 	fclose(fr);
 	return transLog;
@@ -1391,21 +1449,20 @@ struct TransactionLog *getTransactionsOf(int accountNumber){
 
 /**
 	Gets the interest of a given customer account.
-	@param the customer account whose interest is to be calculated
-	@return the year interest
+	@params
+		accnt - the customer account whose interest is to be calculated
+	@return 
+		The total interest of customer from account-creation date to present
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 float getInterest(Account accnt){
-		
 	Date startDate = accnt.startDate;
-	Date currDate;
-	currDate = getDate();
+	Date currDate = getSystemDate();
 	
 	int yearLapse = currDate.year - startDate.year;
 	float interestRate = 0;
 	float interest = 0;
-	
 	//determines whether a year or more had passed by
 	if(yearLapse > 0){
 		if(currDate.month - startDate.month < 0){
@@ -1427,10 +1484,14 @@ float getInterest(Account accnt){
 			printf("Unknown account type. Exiting...\n");
 			return -1;
 		}
-		
-		transLog = getTransactionsOf(accnt.accNumber);
-		startDate.year -= yearLapse- 1; //decremented since the basis year must be below a year than current
-		interest = getYearBalance(transLog, startDate) * interestRate;
+		float yearBalance = 0;
+		for(int i = 1; i <= yearLapse; i++){
+			transLog = getTransactionsOf(accnt.accNumber);
+			startDate.year -= i - 1; //decremented since the basis year must be below a year than current
+			yearBalance = getYearBalance(transLog, startDate);
+			interest +=  yearBalance * interestRate;
+			startDate.year++;
+		}
 	}
 	
 	return interest;
@@ -1439,23 +1500,32 @@ float getInterest(Account accnt){
 /**
 	Obtains the year balance based on a starting date from the customer's transaction logs.
 	Especially useful for calculating interest by obtaining year's balance and multiplying the interest rate accordingly.
-	@param transLog the customer's transaction log whose year balance is to be calculated
-	@parm startDate the basis date for computation; the balance is calculated up to a year from the starting date
-	@return the year balance from the starting date up to one year
+	@params
+		transLog - the customer's transaction log whose year balance is to be calculated
+		startDate - the basis date for computation; the balance is calculated up to a year from the starting date
+	@return 
+		The year balance from the starting date up to one year
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 float getYearBalance(struct TransactionLog *transLog, Date startDate){
 	float balance = 0;
 	while(transLog != NULL){
 		Transaction trans = transLog->transaction;
-		
 		if(trans.transDate.year - startDate.year == 1){
 			// if one year has passed but month did not exceed a year
 			if(trans.transDate.month < startDate.month){ 
 				balance += calculateTransactionAmount(trans.transType, trans.amount);
 			// if one year has passed but days did not exceed a year
 			} else if((trans.transDate.month == startDate.month) && (trans.transDate.day < startDate.day)){
+				balance += calculateTransactionAmount(trans.transType, trans.amount);
+			}
+		} else if(trans.transDate.year == startDate.year){
+			// if same year but more than the starting month
+			if(trans.transDate.month > startDate.month){ 
+				balance += calculateTransactionAmount(trans.transType, trans.amount);
+			// if same year, month, and day on or after the starting day
+			} else if((trans.transDate.month == startDate.month) && (trans.transDate.day >= startDate.day)){
 				balance += calculateTransactionAmount(trans.transType, trans.amount);
 			}
 		} 	
@@ -1469,15 +1539,17 @@ float getYearBalance(struct TransactionLog *transLog, Date startDate){
 	Calculates the amount depending on transaction type.
 	Adds if case 2 (deposit in account); deduct if case 1,3,4 (withdraw, transfer, close resp.)
 	Especially useful in getYearBalance to determine whether an amount is to be added or deducted in the total balance.
-	@param transactionType the transaction type whether... (1) withdraw, (2) deposit, (3) close, or (4) transfer.
-	@param amount the amount to be calculated whether to deduct or add
-	@return the calculated amount
+	@param 
+		transactionType - the transaction type whether... (1) withdraw, (2) deposit, (3) close, or (4) transfer.
+		amount - the amount to be calculated whether to deduct or add
+	@return 
+		The calculated amount; positive if deopsit & negative if withdraw, transfer or close
 	
-	@author Sumandang, AJ Ruth (12/28/2018)
+	@author AJ Ruth Sumandang (12/28/2018)
 */
 float calculateTransactionAmount(int transactionType, float amount){
 	switch(transactionType){
-		case 1:case 3:case 4:
+		case 1: case 3: case 4:
 			return -amount;
 		case 2:
 			return amount;
@@ -1485,10 +1557,6 @@ float calculateTransactionAmount(int transactionType, float amount){
 			return 0;
 	}
 }
-
-
-// MARKPARTS
-
 
 /*
 	Transfer function accepts ACCOUNT NUMBER, DESTINATION ACCOUNT NUMBER and AMOUNT as inputs from the user.
@@ -1501,83 +1569,81 @@ float calculateTransactionAmount(int transactionType, float amount){
 */
 void transfer(){
 	int accountNum;
-	int isExisting=0;
-	Transaction newTransaction;
-	int accountExist=0;
+	int isExisting = 0;
+	int accountExist = 0;
 	int toAccount;
 	
 	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: TRANSFER MONEY \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	//loop for accepting inputs
 	do{
+		Transaction newTransaction;
 		printf("\t==Enter account number==");
 		accountNum = getUserInput();
 
 //		isExisting = checkAccount(accountNum);
 		isExisting = searchAccount(accountNum).accNumber;
 	
-		if(isExisting!=0){
+		if(isExisting != 0){
 			float amount;
 			int isSufficient = 0;
 			do{
 				printf("\t\t==Enter amount to transfer==");
 				amount = getUserFloatInput();
-				newTransaction.accNumber=accountNum;
-				newTransaction.amount=amount;
-				newTransaction.transId=transactionIdCounter+1;
+				newTransaction.accNumber = accountNum;
+				newTransaction.amount = amount;
+				newTransaction.transId = transactionIdCounter + 1;
 				transactionIdCounter++;
-				newTransaction.transType=3;
-				newTransaction.transDate=getDate();
+				newTransaction.transType = 3;
+				newTransaction.transDate = getSystemDate();
 				do{
 					printf("\t==Transfer to==");
 					toAccount = getUserInput();
 					//		isExisting = checkAccount(accountNum);
 						isExisting = searchAccount(accountNum).accNumber;
-						if(accountExist!=0){
-							newTransaction.toAccount=toAccount;
+						if(accountExist != 0){
+							newTransaction.toAccount = toAccount;
 						} else{
 							printf("\tAccount does not exist. Retype account number.");
 						}
 					
 					printf("33]2k\r");			
-				}while(accountExist=0);
+				} while(accountExist == 0);
 					
 				isSufficient = checkBalance(amount,accountNum);
 			
-				if(isSufficient==1){
+				if(isSufficient == 1){
 					process(newTransaction);
 					postTransfer(newTransaction);
-				}else{
+				} else{
 					printf("\tYour balance is not sufficient to complete the transaction.");
 				}
-			}while(isSufficient==0);
+			} while(isSufficient == 0);
 			
 			printf("\tSuccessful\n");
 			
-		}else printf("\nAccount does not exist.\n");
-	}while(isExisting==0);	
+		} else printf("\nAccount does not exist.\n");
+	} while(isExisting == 0);	
 }
 
 /*
-	This is a helper function of Transfer function. It simply debits the amount to the destination account.
+	Helper function of Transfer function. It simply debits the amount to the destination account.
+	@param 
+		newTransaction - the transaction to be added to the transaction file.
 	
-	@param Transaction newTransaction
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@author Mark Torres (12/28/2018)	
 */
 void postTransfer(Transaction newTransaction){
 	Transaction transfer;
-	transfer.accNumber=newTransaction.toAccount;
-	transfer.amount=newTransaction.amount;
-	transfer.toAccount=NULL;
-	transfer.transId=transactionIdCounter+1;
+	transfer.accNumber = newTransaction.toAccount;
+	transfer.amount = newTransaction.amount;
+	transfer.toAccount = NULL;
+	transfer.transId = transactionIdCounter+1;
 	transactionIdCounter++;
-	transfer.transDate=newTransaction.transDate;
-	transfer.transType=1;
+	transfer.transDate = newTransaction.transDate;
+	transfer.transType = 1;
 	process(transfer);
 }
-
 
 /*
 	Withdraw function accepts ACCOUNT NUMBER and AMOUNT as inputs from the user.
@@ -1585,18 +1651,17 @@ void postTransfer(Transaction newTransaction){
 	If sufficient, the function validates the transaction by asking for the teller's PIN.
 	Credits the amount.
 	
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
-	@modify AJ Ruth Sumandang 12/30/2018
+	@author Mark Torres (12/28/2018)
+	@modify Mark Torres (12/28/2018)	
+	@modify AJ Ruth Sumandang (12/30/2018)
 		(FROM) isExisting = checkAccount(accountNum); 
 		(TO) isExisting = searchAccount(accountNum).accNumber;
-		- Reason: because the previous function had a bug and using helper function is more optimal
+		- Reason: because the previous function had bugs and using helper function is more optimal
 */
 void withdraw(){
 	int accountNum;
 	
-	int isExisting=0;
+	int isExisting = 0;
 	Account account;
 	Transaction newTransaction;
 	
@@ -1608,46 +1673,46 @@ void withdraw(){
 		
 		isExisting = searchAccount(accountNum).accNumber;
 	
-		if(isExisting!=0){
+		if(isExisting != 0){
 			float amount;
 			int isSufficient = 0;
 			do{
 				printf("\t\t==Enter amount to withdraw==");
 				amount = getUserFloatInput();
-				newTransaction.accNumber=accountNum;
-				newTransaction.amount=amount;
-				newTransaction.transId=transactionIdCounter+1;
+				newTransaction.accNumber = accountNum;
+				newTransaction.amount = amount;
+				newTransaction.transId = transactionIdCounter+1;
 				transactionIdCounter++;
-				newTransaction.transType=1;
-				newTransaction.toAccount=NULL;
-				newTransaction.transDate=getDate();
+				newTransaction.transType = 1;
+				newTransaction.toAccount = NULL;
+				newTransaction.transDate = getSystemDate();
 			
 				isSufficient = checkBalance(amount,accountNum);
 				
-					if(isSufficient==1){
-						int valid=0;
+					if(isSufficient == 1){
+						int valid = 0;
 						do{
-							valid=validate();
-							if(valid==1){
+							valid = validate();
+							if(valid == 1){
 								process(newTransaction);
 								system("pause");
 							} else{
 								printf("\n\tInvalid PIN. Please try again.");
 							}
 									
-						}while(valid==0);	
-					}else{
+						} while(valid == 0);	
+					} else{
 						printf("\tYour balance is not sufficient to complete the transaction.");
 					}
-			}while(isSufficient==0);
+			} while(isSufficient == 0);
 			
 			printf("\tSuccessful\n");
 		
-		}else printf("\t Account does not exist.");
+		} else printf("\t Account does not exist.");
 		
 		printf("\33[2K\r");
 		printf("\33[2A");
-	}while(isExisting==0);		
+	}while(isExisting == 0);		
 }
 
 /*
@@ -1670,43 +1735,42 @@ int withdrawAmountFrom(float amount, int accountNum){
 	
 	do{
 	
-		newTransaction.accNumber=accountNum;
-		newTransaction.amount=amount;
-		newTransaction.transId=transactionIdCounter+1;
+		newTransaction.accNumber = accountNum;
+		newTransaction.amount = amount;
+		newTransaction.transId = transactionIdCounter+1;
 		transactionIdCounter++;
-		newTransaction.transType=1;
-		newTransaction.toAccount=NULL;
-		newTransaction.transDate=getDate();
+		newTransaction.transType = 1;
+		newTransaction.toAccount = NULL;
+		newTransaction.transDate = getSystemDate();
 			
-		isSufficient = checkBalance(amount,accountNum);
+		isSufficient = checkBalance(amount, accountNum);
 				
-		if(isSufficient==1){
-			int valid=0;
+		if(isSufficient == 1){
+			int valid = 0;
 			
 			do{
-				valid=validate();
-				if(valid==1){
+				valid = validate();
+				if(valid == 1){
 					process(newTransaction);
 					return 1;
 				} else{
 					printf("Invalid PIN. Please try again.");
 				}
 									
-			}while(valid==0);
+			}while(valid == 0);
 				
-		}else{
+		} else{
 			printf("Your balance is not sufficient to complete the transaction.");
 			return 0;
 		}
 		
-	}while(isSufficient==0);
+	} while(isSufficient == 0);
 	
 }
 
 /*
 	Deposit function accepts ACCOUNT NUMBER and AMOUNT as inputs from the user.
 	It checks the if the account is existing then then adds the transaction.
-	
 	
 	@author Mark Torres 12/28/2018
 	@modified Cedric Alvaro 12/30/2018 just format of if - else	
@@ -1726,7 +1790,7 @@ void deposit(){
 		//		isExisting = checkAccount(accountNum);
 		isExisting = searchAccount(accountNum).accNumber;
 	
-		if(isExisting!=0){
+		if(isExisting != 0){
 			float amount;
 			printf("\tEnter amount to deposit: ");
 			amount = getUserFloatInput();
@@ -1734,56 +1798,59 @@ void deposit(){
 			
 			printf("\tSuccessful\n");
 			system("pause");
-		}else{
-			printf("\nAccount does not exist.\n");
-		} 
-				
+		} else 
+			printf("\nAccount does not exist.\n");	
 	}
 }
 
 /**
 	Deposit an amount to the given account number.
-	@param amount the amount to be deposited
-	@param accountNum the account# where the money is to be deposited
+	@param 
+		amount - the amount to be deposited
+		accountNum - the account# where the money is to be deposited
 	
-	@author Torres, Mark
-	@modified Sumandang, AJ (12/29/2018) (Note: I only transferred the code from deposit() function)
+	@author Mark Torres (12/28/2018)
+	@modified AJ Ruth Sumandang (12/29/2018)
+		- Only transferred the code from deposit() function
+		- Reason: for modularity; so this function can be used in createAccount() 
 */
 void depositAmountTo(float amount, int accountNum){
 	Transaction newTransaction;
 	
-	newTransaction.accNumber=accountNum;
-	newTransaction.amount=amount;
-	newTransaction.transId=transactionIdCounter+1;
+	newTransaction.accNumber = accountNum;
+	newTransaction.amount = amount;
+	newTransaction.transId = transactionIdCounter + 1;
 	transactionIdCounter++;
-	newTransaction.transType=2;
-	newTransaction.toAccount=NULL;
-	newTransaction.transDate=getDate();
+	newTransaction.transType = 2;
+	newTransaction.toAccount = NULL;
+	newTransaction.transDate = getSystemDate();
 			
 	process(newTransaction);
 }
 
 
 /*
-	checkBalance function checks if the account has sufficient balance for withdrawal.
-	
-	@param1 float amount
-	@param2 int accountNum
-	
-	@return int sufficient	
+	Checks if the account has sufficient balance for withdrawal.
+	@params
+		amount - amount to be check if sufficient
+		accountNum - account # of customer whose withdraw approval is to be checked
+	@return 
+		1 - Sufficient
+		0 - Not sufficient
 	
 	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@modified AJ Ruth Sumandang 12/30/2018
+		- (FROM)	if(amount < acc.balance){ return 1; } else if(amount == acc.balance){ return 1; }
+		- (TO) 		if(amount <= acc.balance){ return 1; } 
+		- Reason: Optimization
 */
 int checkBalance(float amount,int accountNum){
 	Account acc;
     char str[100];
-    int counter=1;
+    int counter = 1;
     
 	acc = searchAccount(accountNum);
-	if(amount < acc.balance){
-		return 1;
-	} else if(amount == acc.balance){
+	if(amount <= acc.balance){
 		return 1;
 	} else{
 		return 0;
@@ -1826,29 +1893,32 @@ int checkBalance(float amount,int accountNum){
 //}
 
 /*
-	getDate function gets the system date and place it in a Dates struct.
-	
-	@return Dates date	
+	Gets the system date and places it in a Date struct.
+	@return 
+		The current system date	
 	
 	@author Mark Torres 12/28/2018
-	@modify Cedric Alvaro 12/30/2018 made it formal, to other used functions, just for formatting.
+	@modify AJ Ruth Sumandang (12/30/2018) 
+		- (FROM)	struct tm *t = localtime(&now);
+		- (TO)		struct tm t = localtime(&now); (and changed other parts accordingly)
+		- Reason: No need for pointer. 
+	@modify Cedric Alvaro 12/30/2018 
+		- made it formal, to other used functions, just for formatting.
 */
-Date getDate(){
-	char *localDate = new char[1024];
-    Date date;
-
-	_strdate(localDate);
-	date.month = atoi(localDate);
-	date.day = atoi(&localDate[3]);
-	date.year = atoi(&localDate[6]);
-	
-	return date;
+Date getSystemDate(){
+	time_t now = time(NULL);
+   	struct tm t = *localtime(&now);
+   	Date date;
+   	date.day = t.tm_mday;
+   	date.month = t.tm_mon + 1;
+   	date.year = t.tm_year + 1900;
+   	return date;
 }
 
 /*
 	Process function writes the transactions to the file.
-	
-	@param Transaction newTransaction
+	@param 
+		newTransaction - the transaction to be placed into the file
 	
 	@author Mark Torres 12/28/2018
 	@modify Mark Torres 12/28/2018	
@@ -1860,38 +1930,39 @@ void process(Transaction newTransaction){
     itoa(newTransaction.accNumber, accNumber, 10);
     char filename[100];
 	strcpy(filename, accNumber);
-    strcat(filename,".tr");
+    strcat(filename, ".tr");
  
     fp = fopen(filename, "a");
     if (fp == NULL){
-        printf("Could not open file %s",filename);
+        printf("Could not open file %s", filename);
     } else{
-    	fprintf(fp,"%d\n",newTransaction.transId);
-    	fprintf(fp,"%d\n",newTransaction.transType);
-    	fprintf(fp,"%d\n",newTransaction.accNumber);
-    	fprintf(fp,"%d/%d/%d\n",newTransaction.transDate.month,newTransaction.transDate.day,newTransaction.transDate.year);
-    	fprintf(fp,"%.2f\n",newTransaction.amount);
-    	fprintf(fp,"%d\n",newTransaction.toAccount);
+    	fprintf(fp,"%d\n", newTransaction.transId);
+    	fprintf(fp,"%d\n", newTransaction.transType);
+    	fprintf(fp,"%d\n", newTransaction.accNumber);
+    	fprintf(fp,"%d/%d/%d\n", newTransaction.transDate.month,newTransaction.transDate.day,newTransaction.transDate.year);
+    	fprintf(fp,"%.2f\n", newTransaction.amount);
+    	fprintf(fp,"%d\n", newTransaction.toAccount);
     	fprintf(fp,"\n");
 	} 	
     fclose(fp);	
     postTransaction(newTransaction.accNumber);
-    updateTransId(newTransaction.transId);
+    updateIds(getLatestIdFromStorage(2), newTransaction.transId);
 }
 
 /*
-	validate function accepts the  PIN and check if it matches with the teller's PIN.
+	Validates function accepts the PIN and check if it matches with the teller's PIN.
+	@returns
+		Value that tells caller if entered PIN is valid
+		1 - if pin is valid
+		0 - if pin is invalid
 	
-	@return int valid	
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@author Mark Torres (12/28/2018)	
 */
 int validate(){
 	int pin;
 	printf(" \t\t==VALIDATION (Enter pin)==");
 	pin = getUserInput();
-	if(pin==tellerPin) {
+	if(pin == tellerPin) {
 		return 1;	
 	} else{
 		return 0;
@@ -1899,165 +1970,177 @@ int validate(){
 }
 
 /*
-	getLatestTransactionID function fetches the latest transaction number from a file.
-	
-	@return int transactionID	
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	Fetches the latest transaction number from a file.
+	@returns
+		The latest transaction ID
+	@author Mark Torres (12/28/2018)	
 */
 int getLatestTransactionId(){
+	  return getLatestIdFromStorage(1);
+}
+
+/*
+	Fetches the latest transaction number from a file.
+	@params 
+		type - the type of value to retrieve from file
+			1 - Transaction
+			2 - Account
+	@returns
+		The latest ID based on received type param
+	
+	@author Mark Torres (12/28/2018)
+	@modified AJ Ruth Sumandang (12/31/2018)
+		- Transferred code to this function
+		- Reason: for function reusability
+*/
+int getLatestIdFromStorage(int type){
 	FILE *fp;
     char str[100];
     char filename[100] = "Metadata.mt";
-    int counter=1;
+    int counter = 1;
  
     fp = fopen(filename, "r+");
-    if (fp == NULL){
-        printf("Could not open file %s",filename);
+    if(fp == NULL){
+        printf("Could not open file %s", filename);
     } else{
-    	while (fgets(str, 1000, fp) != NULL){
-  		
-  			switch(counter){
-  				case 1: {
-  					int latestId=atoi(str);
-  					fclose(fp);	
-					return latestId;
-				  }
-		 	}
+    	while(fgets(str, 1000, fp) != NULL){
+    		if(counter == type){
+    			int latestId = atoi(str);
+  				fclose(fp);	
+				return latestId;
+			}
+			
   			counter++;
 		}
 		fclose(fp);	
 	}
-	return 0;  
-   
+	return 0;
 }
 
 /*
-	updateTransId function writes the latest transactionId to a file.
-	
-	@param int latestTransactionId	
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	Writes the latest transactionId to a file.
+	@params
+		latestTransId - the latest transaction ID
+		latestAccId - the latest account ID
+	@author Mark Torres (12/28/2018)
+	@modify AJ Ruth Sumandang (12/31/2018)
+		- Change name from updateTransId -> updateIds
+		- Reason: to accomodate change in storage; stored latest acc. # as well	
 */
-void updateTransId(int latestTransId){
-	printf("udating transId....\n");
+void updateIds(int latestTransId, int latestAccId){
 	FILE *fp;
     char filename[100] = "Metadata.mt";
  
     fp = fopen(filename, "w+");
     if (fp == NULL){
-        printf("Could not open file %s",filename);
+        printf("Could not open file %s", filename);
         return;
     } else{
-    	fprintf(fp,"%d\n",latestTransId);
+    	fprintf(fp, "%d\n", latestTransId);
+    	fprintf(fp, "%d", latestAccId);
     	fclose(fp);	
 	}  
 }
 
 /*
-	postTransaction function calculates the new balance based on the total deposits, withdrawals and transfers.
-	
-	@param int accNumber
-	
+	Calculates the new balance based on the total deposits, withdrawals and transfers.
+	The data is retrieved from the transaction logs of the customer.
+	@params
+		accNumber - the account# of customer whose balance is to be calculated
+		
 	@author Mark Torres 12/28/2018
 	@modify Mark Torres 12/28/2018	
 */
 void postTransaction(int accNumber){
-	Account accUpdated=getAccount(accNumber);
+	Account accUpdated = getAccount(accNumber);
 	printf(" \t\t==================================================\n");
-	printf(" \tAccount Number: %d\n",accUpdated.accNumber);
-	printf(" \tName: %s,%s %s\n",accUpdated.lastName,accUpdated.firstName,accUpdated.middleName);
+	printf(" \tAccount Number: %d\n", accUpdated.accNumber);
+	printf(" \tName: %s,%s %s\n", accUpdated.lastName, accUpdated.firstName, accUpdated.middleName);
 	printf(" \t==================================================\n");
 	printf(" \t			Summary						\n");
 	printf(" \t==================================================\n");
-	float totalDeposits=getTotal(2,accNumber);
-		printf(" \tDeposits: %.2f\n",totalDeposits);
-	float totalWithdrawals=getTotal(1,accNumber);
-		printf(" \tWithdraws: %.2f\n",totalWithdrawals);
-	float totalTransfers=getTotal(3,accNumber);
-		printf(" \tTransfers: %.2f\n",totalTransfers);
+	float totalDeposits = getTotal(2, accNumber);
+		printf(" \tDeposits: %.2f\n", totalDeposits);
+	float totalWithdrawals = getTotal(1, accNumber);
+		printf(" \tWithdraws: %.2f\n", totalWithdrawals);
+	float totalTransfers = getTotal(3,accNumber);
+		printf(" \tTransfers: %.2f\n", totalTransfers);
 	
 	
-	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers);
-	
+	float newBalance = totalDeposits - (totalWithdrawals + totalTransfers) + getInterest(accUpdated);
+
 	printf(" \t==================================================\n");	
-	accUpdated.balance=newBalance;
-	printf(" \tNew Balance: %.2f\n",accUpdated.balance);
+	accUpdated.balance = newBalance;
+	printf(" \tNew Balance: %.2f\n", accUpdated.balance);
 	postAccountUpdate(accUpdated);
 }
 
 /*
-	getTotal function gets the total deposits or withdrawals or transfers.
+	Gets the total deposits or withdrawals or transfers.
 	
-	@param1 int traansType
-	@param2 int acctNumber
-	
-	@return float sum
-	
+	@params
+		transType - the transaction's type (1) (2) (3) (4)
+		acctNumber - account # of customer whose transactions are to be calculated
+	@return 
+		total balance
+		
 	@author Mark Torres 12/28/2018
 	@modify Mark Torres 12/28/2018	
 */
 
 float getTotal(int transType,int acctNumber){
 	FILE *fp;
-    char str[100];
+    char *str = new char[1024];
     char accNumber[100];
     char filename[100] ;
-    int counter=1;
+    int counter = 1;
     Transaction transaction;
-    float sum=0;
+    float sum = 0;
     
     itoa(acctNumber, accNumber, 10);
-    strcpy(filename,accNumber);
-    strcat(filename,".tr");
+    strcpy(filename, accNumber);
+    strcat(filename, ".tr");
     
     fp = fopen(filename, "r");
     if (fp == NULL){
-        printf("Could not open file %s",filename);
+        printf("Could not open file %s", filename);
         return 0;
     } else{
-    	while (fgets(str, 1000, fp) != NULL){
+    	while (fgets(str, 100, fp) != NULL){
     		switch(counter){
-    			case 1:{
-    				transaction.transId=atoi(str);
+    			case 1:
+    				transaction.transId = atoi(str);
     				counter++;
 					break;
-				}
-				case 2:{
-					transaction.transType=atoi(str);
+				case 2:
+					transaction.transType = atoi(str);
 					counter++;
 					break;
-				}
-				case 3:{
-					transaction.accNumber=atoi(str);
+				case 3:
+					transaction.accNumber = atoi(str);
 					counter++;
 					break;
-				}
-				case 4:{
+				case 4:
 					//DUMMY DATE (must call date transform function)
-					transaction.transDate=getDate();
+					/* TODO (#2#): Figure out what Mark means */
+					transaction.transDate = getSystemDate();
 					counter++;
 					break;
-				}
-				case 5:{
-					transaction.amount=atof(str);
-					if(transaction.transType==transType){
-					sum=sum+atof(str);
-					counter++;
-					break;
+				case 5:
+					transaction.amount = atof(str);
+					if(transaction.transType == transType){
+						
+						sum = sum + atof(str);
+						counter++;
 					}
-				}
-				case 6:{
-					transaction.toAccount=atoi(str);
-					counter=0;
 					break;
-				}
-				case 0:{
-					counter=1;		
+				case 6:
+					transaction.toAccount = atoi(str);
+					counter = 0;
 					break;
-				}
+				case 0:
+					counter = 1;		
+					break;
 			}	
 		}
 		fclose(fp);
@@ -2065,14 +2148,13 @@ float getTotal(int transType,int acctNumber){
 	} 
 }
 /*
-	getaccount function retrieves the Account specified by the account number.
+	Retrieves the Account specified by the account number.
+	@params 
+		accountNum - account # of account to be retrieved
+	@returns 
+		retrieved account
 	
-	@param int accountNum
-	
-	@return Account account
-	
-	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@author Mark Torres (12/28/2018)
 */
 Account getAccount(int accountNum){
 	Account acc;
@@ -2080,11 +2162,11 @@ Account getAccount(int accountNum){
 	FILE *fp;
     char str[100];
     char filename[100] = "account.in";
-    int counter=1;
+    int counter = 1;
  
     fp = fopen(filename, "r");
     if (fp == NULL){
-        printf("Could not open file %s",filename);
+        printf("Could not open file %s", filename);
     } else{
     	acc = searchAccount(accountNum);
 		fclose(fp);
