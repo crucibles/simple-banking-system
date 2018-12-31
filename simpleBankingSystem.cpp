@@ -26,6 +26,8 @@ The simple banking system can:
 #define BUFFER_SIZE 100
 #define SAVINGS_INTEREST_RATE 0.025
 #define CURRENT_INTEREST_RATE 0.015
+#define SAVINGS_DEFAULT 200
+#define CURRENT_DEFAULT 1000
 
 struct Date{
 	int month, day, year;
@@ -70,9 +72,13 @@ void rect();
 void rect(int,int,int,int);
 void hline(int,int,int);
 void vline(int,int,int);
+void loadingScreen();
+void deleteInput(int num);
 
 //General helper functions
 int getUserInput();
+float getUserFloatInput();
+int *getUserDateInput();
 char* fgetsW(char* buffer, int bufferLength, FILE *fp);
 
 //Account functions
@@ -96,6 +102,7 @@ void transactions();
 void transfer();
 void viewTransactionLogs();
 void withdraw();
+
 //Transaction helper functions
 void askAccNum();
 float calculateTransactionAmount(int transType, float amount);
@@ -112,16 +119,26 @@ void postTransfer(Transaction newTransaction);
 void process(Transaction newTransaction);
 void updateTransId(int latestTransId);
 int validate();
+int withdrawAmountFrom(float, int);
 
 //Security functions
 bool dateChecker(int,int,int);
 bool intChecker();
+
 
 int transactionIdCounter=getLatestTransactionId();
 int tellerPin=1234;
 
 main(){
 
+	loadingScreen();
+	start();
+	
+	return 0;
+}
+
+
+void loadingScreen(){
 	int i = 0,x = 1;
 	
 	gotoxy(15,15);
@@ -132,7 +149,7 @@ main(){
 		gotoxy(i,15);
 		Sleep(30);
         printf("\xB2");
-        gotoxy(59,15);
+        gotoxy(57,15);
         printf(" [%d %]", x);
         x+=3;
     }
@@ -140,9 +157,6 @@ main(){
     gotoxy(25,19);
     system("pause");
     system("cls");
-	start();
-	
-	return 0;
 }
 
 
@@ -170,17 +184,14 @@ bool dateChecker(int month, int day, int year){
 			} else if(dd==29 && mm==2 && (yy%400==0 ||(yy%4==0 && yy%100!=0))){
 				return true;
 			} else{
-				printf("	Date invalid. \n");
 				return false;	
 			}
                 
         } else{
-            printf("	Month is not valid.\n");
             return false;
         }
         
     } else{
-        printf("	Year is not valid.\n");
         return false;
     }
 
@@ -208,7 +219,7 @@ void transactions(){
 	rect(4, 4, 77, 15);
 	
 	gotoxy(35,18);
-	scanf("%d",&choice);
+	choice = getUserInput();
     system("cls");
 
     switch(choice) {
@@ -223,9 +234,11 @@ void transactions(){
 	    	break;
 	    case 0:
 	       	menu();
-        break;     
+        	break;
+        default:
+        	transactions();
+        	break;
     }
-    menu();
 }
 
 
@@ -299,7 +312,6 @@ void vline(int y1,int y2,int x)
   }
 }
 
-
 /*
 	@author Cedric Alvaro
 
@@ -322,12 +334,13 @@ void menu(){
 	"4.Check the details of existing account\n\t\t"
 	"5.Close an existing account\n\t\t"
 	"6.View Account Transaction Logs\n\t\t"
-	"0.Exit\n\n\n\n\n\t\t"
-	"Enter your choice:");
+	"7.Logout\n\t\t"
+	"0.Exit Program\n\n\n\n\t"
+	"==Enter your choice==");
 	rect(4, 4, 77, 15);
 	
 	gotoxy(35,18);
-	scanf("%d",&choice);
+	choice = getUserInput();
     system("cls");
 
     switch(choice) {
@@ -349,9 +362,12 @@ void menu(){
 	    case 6:
 	    	viewTransactionLogs();
 	       	break;
-	    case 0:
+	    case 7:
 	       	start();
-        	break;     
+        	break;
+		case 0:
+			exit(1);
+			break;     
     }
     menu();	
 }
@@ -372,19 +388,6 @@ int confirm(){
 	char password[] = "manager";
 	char *pass = new char[1024];
     int i=0, tries=3;
-    
-    char input;
-	do{
-		if (!(input == 127 || input == 8)) {
-			printf("*");
-			pass[i] = input;
-			i++;
-		} else if (i!=0){
-			printf("\b \b");
-			i--;
-		}
-		input = getch();
-	} while(input != '\r');
 
     
     while(tries > 0){
@@ -394,7 +397,20 @@ int confirm(){
 		rect(5, 7, 75, 15);
 		gotoxy(20,10);
 		printf("\tPassword to confirm this action: ");
-		scanf("%s",pass);
+		char input = getch();
+		while (input != '\r' && i<=10)
+		{
+			if (!(input == 127 || input == 8)) {
+				printf("*");
+				pass[i] = input;
+				i++;
+			} else if (i!=0){
+				printf("\b \b");
+				i--;
+			}
+			input = getch();
+		}
+		pass[i]='\0';
 
 	
 		if (strcmp(pass,password)==0){
@@ -410,7 +426,7 @@ int confirm(){
         return 1;
 	    } else {
 	    	tries--;
-			gotoxy(25,18);
+			gotoxy(25,19);
 			printf("Password is wrong! Remaining tries: %d", tries);
 		
 			for(i=0;i<=6;i++){
@@ -434,89 +450,98 @@ int confirm(){
 void closeAccount(){
 	int remAcc;
 	int counter = count();
-	Account searchedAcc;
+	Account searchedAcc, user;
 	char choice;
 	char blank[100];
 	
-	// call helper function of withdraw();
-	// withdraw();
 
-	FILE *fr,*newrec;
-    fr=fopen("account.in","r");
-    newrec=fopen("new_account.in","w");
+
+
     
-    
-    printf("Enter the account no. of the user you want to delete: ");
-    scanf("%d", &remAcc);
-    displayAcc(remAcc);
-    fflush(stdin);
-    printf("\n\nAre you sure you want to delete this account?\nYou cannot undo this action (Y/N): ");
-    scanf("%c", &choice);
-    
-    if(choice == 'y' || choice=='Y'){
-    	
-    	if (confirm()){
-    		while(counter > 1){
-				fgets(searchedAcc.firstName, 100, fr);
-				fgets(searchedAcc.middleName, 100, fr);
-				fgets(searchedAcc.lastName, 100, fr);
-				fscanf(fr, "%d/%d/%d", &searchedAcc.birthDate.month, &searchedAcc.birthDate.day, &searchedAcc.birthDate.year);
-				fscanf(fr, "%f", &searchedAcc.balance);
-				fscanf(fr, "%d", &searchedAcc.accType);
-				fscanf(fr, "%d/%d/%d", &searchedAcc.startDate.month, &searchedAcc.startDate.day, &searchedAcc.startDate.year);
-				fscanf(fr, "%d", &searchedAcc.accNumber);
-				fscanf(fr, "%d", &searchedAcc.pin);
-				// skip two lines
-				fgets(blank, 100, fr);
-				fgets(blank, 100, fr);
-				
-				if(remAcc != searchedAcc.accNumber){
-					fprintf(
-						newrec,
-						"%s%s%s%d/%d/%d\n%.2f\n%d\n%d/%d/%d\n%d\n%d\n\n",
-						
-						searchedAcc.firstName, 
-						searchedAcc.middleName, 
-						searchedAcc.lastName, 
-						searchedAcc.birthDate.month, 
-						searchedAcc.birthDate.day, 
-						searchedAcc.birthDate.year, 
-						searchedAcc.balance, 
-						searchedAcc.accType, 
-						searchedAcc.startDate.month, 
-						searchedAcc.startDate.day, 
-						searchedAcc.startDate.year, 
-						searchedAcc.accNumber, 
-						searchedAcc.pin 
-					);
+    printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 CLOSING AN ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
+    printf(" \tEnter the account no. of the user you want to delete: ");
+    remAcc = getUserInput();
+    user = getAccount(remAcc);
+    system("cls");
+	displayAcc(remAcc);
 	
+	if(user.accNumber > 0){
+		
+	    fflush(stdin); 
+	    printf("\n\tAre you sure you want to delete this account?\n"
+	    "\tYou will automatically withdraw all your remaining balance.\n"
+		"\tYou cannot undo this action (Y/N): ");
+	    scanf("%c", &choice);
+	    
+	    if(choice == 'y' || choice=='Y' ){
+	    	
+	    	if (confirm() && withdrawAmountFrom(user.balance, user.accNumber)){
+	    		
+				FILE *fr,*newrec;
+	    		fr=fopen("account.in","r");
+	    		newrec=fopen("new_account.in","w");
+	    
+	    		while(counter > 1){
+					fgets(searchedAcc.firstName, 100, fr);
+					fgets(searchedAcc.middleName, 100, fr);
+					fgets(searchedAcc.lastName, 100, fr);
+					fscanf(fr, "%d/%d/%d", &searchedAcc.birthDate.month, &searchedAcc.birthDate.day, &searchedAcc.birthDate.year);
+					fscanf(fr, "%f", &searchedAcc.balance);
+					fscanf(fr, "%d", &searchedAcc.accType);
+					fscanf(fr, "%d/%d/%d", &searchedAcc.startDate.month, &searchedAcc.startDate.day, &searchedAcc.startDate.year);
+					fscanf(fr, "%d", &searchedAcc.accNumber);
+					fscanf(fr, "%d", &searchedAcc.pin);
+					// skip two lines
+					fgets(blank, 100, fr);
+					fgets(blank, 100, fr);
+					
+					if(remAcc != searchedAcc.accNumber){
+						fprintf(
+							newrec,
+							"%s%s%s%d/%d/%d\n%.2f\n%d\n%d/%d/%d\n%d\n%d\n\n",
+							
+							searchedAcc.firstName, 
+							searchedAcc.middleName, 
+							searchedAcc.lastName, 
+							searchedAcc.birthDate.month, 
+							searchedAcc.birthDate.day, 
+							searchedAcc.birthDate.year, 
+							searchedAcc.balance, 
+							searchedAcc.accType, 
+							searchedAcc.startDate.month, 
+							searchedAcc.startDate.day, 
+							searchedAcc.startDate.year, 
+							searchedAcc.accNumber, 
+							searchedAcc.pin 
+						);
+		
+					}
+					counter--;
 				}
-				counter--;
-			}
-			    fclose(fr);
-				fclose(newrec);
-				if (remove("account.in") != 0 ){
-					printf("\nSystem error in updating the new list of accounts.\n");
+				    fclose(fr);
+					fclose(newrec);
+					if (remove("account.in") != 0 ){
+						printf("\nSystem error in updating the new list of accounts.\n");
+						system("pause");
+					}
+				    if (rename("new_account.in","account.in") == -1){
+				    	printf("\nSystem error in renaming the new list of accounts.\n");
+				    	system("pause");
+					}
+				
 					system("pause");
-				}
-			    if (rename("new_account.in","account.in") == -1){
-			    	printf("\nSystem error in renaming the new list of accounts.\n");
-			    	system("pause");
-				}
-			
-				system("pause");
-			printf("\n\n\t\tClosing account succesful!\n\t\t");
+				printf("\n\n\t\tClosing account succesful!\n\t\t");
+			}
+	
+		} else {
+			system("cls");
+			printf("\n\tYour choice resulted in\n\tgoing back to the main menu!");
+			system("pause");
+			return;
 		}
-
-	} else {
-		printf("\n\nGoing back to the main menu!");
-		system("pause");
-		fclose(fr);
-		fclose(newrec);
-		return;
+	
 	}
     
-
 }
 
 
@@ -539,7 +564,7 @@ void start(){
 	printf("\tEnter the password to login: ");
 	
 	char input = getch();
-	while (input != '\r')
+	while (input != '\r' && i<=10)
 	{
 		if (!(input == 127 || input == 8)) {
 			printf("*");
@@ -585,7 +610,8 @@ void start(){
 	
 */
 void gotoxy(int x, int y){
-	static HANDLE h = NULL;  
+
+	static HANDLE h = NULL;
 	if(!h){
 		h = GetStdHandle(STD_OUTPUT_HANDLE);
 	}
@@ -695,9 +721,10 @@ Account searchAccount(int accNumber){
 void askAccNum(){
 	int accNumber;
 	
-	printf("Enter the account number: ");
+	printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 SEARCH AN ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
+	printf(" \tEnter the account number: ");
 	scanf("%d", &accNumber);
-	
+	system("cls");
 	displayAcc(accNumber);
 }
 
@@ -710,22 +737,23 @@ void askAccNum(){
 */
 void displayAcc(int accNumber){
 	Account user;
-	
 	user = searchAccount(accNumber);
+	
+	printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 ACCOUNT DETAILS \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	if(user.accNumber != 0){
 		printf(
-			"Here are the account details:\n\n"
+			" \tHere are the account details:\n\n"
 			
-			"First name:		%s"
-			"Middle name:		%s"
-			"Last name:		%s"
-			"BirthDate (MM/DD/YY):	%d/%d/%d\n"
-			"Balance:		%.2f\n"
-			"Account Type:		%s\n"
-			"Account Created (MM/DD/YY): %d/%d/%d\n"
-			"Account Number:		%d\n"
-			"Account Pin:		%s\n\n",
+			" \tFirst name:		%s"
+			" \tMiddle name:		%s"
+			" \tLast name:		%s"
+			" \tBirthDate (MM/DD/YY):	%d/%d/%d\n"
+			" \tBalance:		%.2f\n"
+			" \tAccount Type:		%s\n"
+			" \tAccount Created (MM/DD/YY): %d/%d/%d\n"
+			" \tAccount Number:		%d\n"
+			" \tAccount Pin:		%s\n\n",
 			
 			user.firstName, 
 			user.middleName, 
@@ -737,8 +765,11 @@ void displayAcc(int accNumber){
 			user.accNumber, 
 			user.pin
 		);
+	} else {
+		
+		printf(" \t The user does not exist.\n");
 	}
-	
+	printf("\t");
 	system("pause");
 }
 
@@ -772,8 +803,42 @@ void postAccount(Account add){
 	
 	fclose(fr);
 	system("cls");
-	printf("\n\nThis is your information, Please edit later if you want.\n\n\n");
+	printf("\n\t\t\t\xB2 This is the newly created account \xB2");
 	displayAcc(add.accNumber);
+}
+
+int *getUserDateInput(){
+
+	int *date = new int[1024], i;
+	char s[2] = "/";
+    char *token;
+    char *input = new char[1024];
+
+	do{
+		date[0] = 0;
+		date[1] = 0;
+		date[2] = 0;
+				
+		i = 0;
+		
+		printf("\33[2K\r");
+		printf("\tPlease input a valid Date: ");
+		fgetsW(input, 100, stdin);
+		deleteInput(1);
+				
+		/* get the first token */
+	    token = strtok(input, s);
+			    
+	    /* walk through other tokens */
+	    while( token != NULL ) {
+			date[i] = atoi(token);
+		   	token = strtok(NULL, s);
+		   	i++;
+		}
+						    
+	}while(!dateChecker(date[0], date[1], date[2]));
+	
+	return date;
 }
 
 /*
@@ -785,11 +850,12 @@ void postAccount(Account add){
 */
 void createAccount(){
 	Account add;
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
 
 	int counter = 0;
-	char *input = new char[1024];
-	char c;
+	int *date = new int[3];
+	char localDate[9];
+
 	
 	printf(
 	"\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2"
@@ -801,9 +867,9 @@ void createAccount(){
 	"	Enter first name: ", 
 	"	Enter middle name: ", 
 	"	Enter last name: ", 
-	"	Enter birthdate in MM/DD/YYYY format: ", 
+	"	Enter birthdate in MM/DD/YYYY format: \n", 
+	"	\tChoose what account type:\n\t[0 - savings] 200 initial required \n\t[1 - current] 1000 initial required\t",
 	"	Enter starting amount: ",
-	"	Choose what account type [0 - savings, 1 - current]: "
 	};
 	
 	
@@ -822,24 +888,34 @@ void createAccount(){
 				fgetsW(add.lastName, 100, stdin);
 				break;
 			case 3:
-				scanf("%d/%d/%d",&add.birthDate.month, &add.birthDate.day, &add.birthDate.year);
-					while(!dateChecker(add.birthDate.month, add.birthDate.day, add.birthDate.year)){
-						printf("	Please input a valid date: ");
-						scanf("%d/%d/%d",&add.birthDate.month, &add.birthDate.day, &add.birthDate.year);
-					}
+				date = getUserDateInput();   
+				add.birthDate.month = date[0];
+				add.birthDate.day = date[1];
+				add.birthDate.year = date[2];
+			
 				break;
 			case 4:
-				scanf("%f", &add.balance);
+				do {
+					add.accType = getUserInput();
+					printf("\33[A");
+				}while(add.accType != 0 && add.accType != 1);
+				printf("\n\n");
 				break;
 			case 5:
-				scanf("%d", &add.accType);
+				float def = add.accType==1? CURRENT_DEFAULT: SAVINGS_DEFAULT;
+
+				do{
+					add.balance = getUserFloatInput();
+				} while(add.balance < def);
+					
 				break;
+			
 		}
 			
     	counter++;
 	}
 	
-	char localDate[9];
+
 	_strdate(localDate);
 	add.startDate.month = atoi(localDate);
 	add.startDate.day = atoi(&localDate[3]);
@@ -847,11 +923,14 @@ void createAccount(){
 	
 	add.accNumber = newAccNumber();
 	strcpy(add.pin, newPin());
+	printf("\n\t");
 	
     postAccount(add);
     depositAmountTo(add.balance, add.accNumber);
     system("cls");
+    
 }
+
 
 /*
 	@author Cedric Alvaro
@@ -968,14 +1047,16 @@ void updateAccount(){
 	@author Sumandang, AJ Ruth (12/28/2018)	
 */
 void updateMenu(struct Account currAccount){
-	printf("Input number you want to update...\n");
-	printf("[1] First name: 	%s", currAccount.firstName);
-	printf("[2] Middle name: 	%s", currAccount.middleName);
-	printf("[3] Last name: 		%s", currAccount.lastName);
-	printf("[4] Birthdate(M/D/Y): 	%d/%d/%d\n", currAccount.birthDate.month, currAccount.birthDate.day, currAccount.birthDate.year);
-	printf("[5] PIN: 		%s\n", currAccount.pin); 
-	printf("[0] No changes. Exit to main menu.\n", currAccount.pin);
-	printf("Input number: ");
+
+    printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 UPDATING OF ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
+	printf(" \tInput number you want to update...\n");
+	printf("\t[1] First name: 	%s", currAccount.firstName);
+	printf("\t[2] Middle name: 	%s", currAccount.middleName);
+	printf("\t[3] Last name: 		%s", currAccount.lastName);
+	printf("\t[4] Birthdate(M/D/Y): 	%d/%d/%d\n", currAccount.birthDate.month, currAccount.birthDate.day, currAccount.birthDate.year);
+	printf("\t[5] PIN: 		%s\n", currAccount.pin); 
+	printf("\t[0] No changes. Exit to main menu.\n\n", currAccount.pin);
+	printf(" \tInput number: ");
 }
 
 /**
@@ -989,39 +1070,46 @@ void updateProcess(int choice, struct Account currAccount){
 	char name[100];
 	char pin[6];
 	struct Date birthdate;
+	int *date;
 	
 	switch(choice){
+		date[0] = 0;
+		date[1] = 0;
+		date[2] = 0;
 		case 1:
-			printf("Enter First Name (change): ");
+			printf(" \t\tEnter First Name (change): ");
 			fgetsW(name, BUFFER_SIZE, stdin);
 			strcpy(currAccount.firstName, name);
 			strcat(currAccount.firstName, "\n");
 			postAccountUpdate(currAccount);
 			break;
 		case 2:
-			printf("Enter Middle Name (change): ");
+			printf(" \t\tEnter Middle Name (change): ");
 			fgetsW(name, BUFFER_SIZE, stdin);
 			strcpy(currAccount.middleName, name);
 			strcat(currAccount.middleName, "\n");
 			postAccountUpdate(currAccount);
 			break;
 		case 3:
-			printf("Enter Last Name (change): ");
+			printf(" \t\tEnter Last Name (change): ");
 			fgetsW(name, BUFFER_SIZE, stdin);
 			strcpy(currAccount.lastName, name);
 			strcat(currAccount.lastName, "\n");
 			postAccountUpdate(currAccount);
 			break;
 		case 4:
-			printf("Enter Birthdate(change)(MM/DD/YYYY format): ");
-			scanf("%d/%d/%d", &birthdate.month, &birthdate.day, &birthdate.year);
+			printf(" \t\tEnter Birthdate(change)(MM/DD/YYYY format): ");
+			date = getUserDateInput();
+			birthdate.month = date[0];
+			birthdate.day = date[1];
+			birthdate.year = date[2];
 			currAccount.birthDate.month = birthdate.month;
 			currAccount.birthDate.day = birthdate.day;
 			currAccount.birthDate.year = birthdate.year;
 			postAccountUpdate(currAccount);
 			break;
 		case 5:
-			printf("Enter PIN (change): ");
+			printf(" \t\tEnter PIN (change): ");
 			fgetsW(pin, 6, stdin);
 			pin[6] = '\0';
 			strcpy(currAccount.pin, pin);
@@ -1030,7 +1118,7 @@ void updateProcess(int choice, struct Account currAccount){
 		case 0:
 			break;
 		default:
-			printf("Invalid input! Please input again...\n");
+			printf(" \t\tInvalid input! Please input again...\n");
 			system("pause");
 			break;
 	}
@@ -1073,7 +1161,7 @@ void postAccountUpdate(struct Account currAccount){
         		case 3: 
         			sprintf(lineString, "%d", currAccount.birthDate.month);
         			strcat(lineString, "/");
-        			sprintf(temp, "%d", currAccount.birthDate.month);
+        			sprintf(temp, "%d", currAccount.birthDate.day);
         			strcat(lineString, temp);
         			strcat(lineString, "/");
         			strcpy(temp, "");
@@ -1124,19 +1212,22 @@ Account getAccount(){
 	int choice;
 	int accountNumber;
 	Account currAccount;
+    printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 UPDATING OF ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
+	
 	do{
 		choice  = 0;
-		printf("Please input account number to update: ");
-		scanf("%d", &accountNumber);
+		printf(" \tPlease input account number to update: ");
+		accountNumber = getUserInput();
 		currAccount = searchAccount(accountNumber);
 	
 		if(currAccount.accNumber == 0){
-			printf("Invalid input or the account does not exist. Do you want to input again or exit to main menu?\n");
-			printf("[1] Input Again");
-			printf("[0] Exit to Main Menu");
+			printf(" \tInvalid input or the account does not exist. Do you want to input again or exit to main menu?\n");
+			printf(" \t[1] Input Again");
+			printf(" \t[0] Exit to Main Menu");
 		}
-	} while(choice != 0);
+	} while(choice != 0 && choice != 1);
 	
+	system("cls");
 	return currAccount;
 }
 
@@ -1147,13 +1238,46 @@ Account getAccount(){
 	@author Sumandang, AJ Ruth (12/28/2018)
 */
 int getUserInput(){
-	int choice;
-	do{   
-    	scanf(" %d", &choice);
-    	while(getchar() != '\n'); 
-	} while (choice < 0);
+	int choice = 0;
+	int retval, count = 0;
 	
-	return choice;
+	printf("\n");
+	while(choice == 0){
+		
+		printf("\33[2K\r");
+		printf("\tPlease enter a valid number:");
+		choice = scanf("%d", &retval);
+		deleteInput(1);
+		
+    	while(getchar() != '\n');
+	}
+	
+	return retval;
+}
+
+void deleteInput(int num){
+
+	for( int i=0; i<num; i++ ){
+		printf("\b");
+	}
+
+}
+
+float getUserFloatInput(){
+	int choice = 0;
+	float retval;
+	
+	printf("\n");
+	while(choice == 0){
+		printf("\33[2K\r");
+		printf("\tPlease enter a valid amount: ");
+    	choice = scanf(" %f", &retval);
+    	deleteInput(1);
+    	
+    	while(getchar() != '\n');
+	}
+	
+	return retval;
 }
 
 /**
@@ -1172,11 +1296,11 @@ void viewTransactionLogs(){
 		
 		char transType[][20] = {"Withdrawal", "Deposit", "Closing Account"};
 		if(transaction.accNumber != 0){
-			printf("Transaction ID: 	%d\n", transaction.transId);
-			printf("Account Number: 	%d\n", transaction.accNumber);
-			printf("Transaction Date: 	%d/%d/%d\n", transaction.transDate.month, transaction.transDate.day, transaction.transDate.year);
-			printf("Transaction Type: 	%s\n", transType[transaction.transType]);
-			printf("Transaction Amount:	%f\n", transaction.amount);
+			printf(" Transaction ID: 	%d\n", transaction.transId);
+			printf(" Account Number: 	%d\n", transaction.accNumber);
+			printf(" Transaction Date: 	%d/%d/%d\n", transaction.transDate.month, transaction.transDate.day, transaction.transDate.year);
+			printf(" Transaction Type: 	%s\n", transType[transaction.transType - 1]);
+			printf(" Transaction Amount:	%f\n", transaction.amount);
 			(transaction.toAccount != 0)? printf("Transferred to Accnt#:	%d\n\n", transaction.accNumber): printf("\n\n");
 		}
 		
@@ -1190,26 +1314,33 @@ void viewTransactionLogs(){
 	@return customer transaction logs (in struct Transaction form)
 	
 	@author Sumandang, AJ Ruth (12/28/2018)
+	@modify Cedric Alvaro (12/30/2018) addded condition in while loop
 */
 struct TransactionLog *getTransactions(){
 	int choice = 0, accountNumber;
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
 	
+	printf(
+	"\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2"
+	" TRANSACTION LOGS MANAGEMENT "
+	"\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n\n"
+	);
+	
 	do{
 		choice = 0;
-		printf("Input account number to view: ");
-		scanf("%d", &accountNumber);
+		printf(" \tInput account number to view: ");
+		accountNumber = getUserInput();
 		transLog = getTransactionsOf(accountNumber);
 		
 		if(transLog == NULL){
-			printf("\n\nInvalid input or non-existent account. Do you want to input again?\n");
-			printf("[1] Input Again\n");
-			printf("[0] Exit to Main Menu\n");
-			printf("Input choice: ");
-			scanf("%d", &choice);
+			printf("\n\n \tInvalid input or non-existent account. Do you want to input again?\n");
+			printf(" \t[1] Input Again\n");
+			printf(" \t[0] Exit to Main Menu\n");
+			printf(" \tInput choice: ");
+			choice = getUserInput();
 		} 
-	} while(choice != 0);
+	} while(choice != 0 && choice!= 1);
 	
 	return transLog;
 }
@@ -1263,23 +1394,10 @@ struct TransactionLog *getTransactionsOf(int accountNumber){
 	@author Sumandang, AJ Ruth (12/28/2018)
 */
 float getInterest(Account accnt){
-	/* TODO (#1#): AHJ: delete below if received account is okay. */
-	accnt.startDate.day = 27;
-	accnt.startDate.month = 12;
-	accnt.startDate.year = 2017;
-	accnt.accType = 1;
-	accnt.balance = 1125;
-	accnt.accNumber = 12;
-	//AHJ: end here
 		
-	time_t t = time(NULL);
-	struct tm tm = *localtime(&t);
-	
 	Date startDate = accnt.startDate;
 	Date currDate;
-	currDate.day = tm.tm_mday;
-	currDate.month = tm.tm_mon + 1;
-	currDate.year = tm.tm_year + 1900;
+	currDate = getDate();
 	
 	int yearLapse = currDate.year - startDate.year;
 	float interestRate = 0;
@@ -1376,7 +1494,7 @@ float calculateTransactionAmount(int transactionType, float amount){
 	Credits the amount then debits it to the destination account.
 	
 	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@modify Cedric Alvaro 12/30/2018 added input security
 */
 void transfer(){
 	int accountNum;
@@ -1384,10 +1502,13 @@ void transfer(){
 	Transaction newTransaction;
 	int accountExist=0;
 	int toAccount;
+	
+	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: TRANSFER MONEY \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
+	
 	//loop for accepting inputs
 	do{
-		printf("Enter account number:\n");
-		scanf("%d",&accountNum);
+		printf("\t==Enter account number==");
+		accountNum = getUserInput();
 
 //		isExisting = checkAccount(accountNum);
 		isExisting = searchAccount(accountNum).accNumber;
@@ -1396,8 +1517,8 @@ void transfer(){
 			float amount;
 			int isSufficient = 0;
 			do{
-				printf("Enter amount to transfer:\n");
-				scanf("%f",&amount);
+				printf("\t\t==Enter amount to transfer==");
+				amount = getUserFloatInput();
 				newTransaction.accNumber=accountNum;
 				newTransaction.amount=amount;
 				newTransaction.transId=transactionIdCounter+1;
@@ -1405,14 +1526,17 @@ void transfer(){
 				newTransaction.transType=3;
 				newTransaction.transDate=getDate();
 				do{
-					printf("Transfer to:\n");
-					scanf("%d",&toAccount);
+					printf("\t==Transfer to==");
+					toAccount = getUserInput();
 					//		isExisting = checkAccount(accountNum);
 						isExisting = searchAccount(accountNum).accNumber;
 						if(accountExist!=0){
 							newTransaction.toAccount=toAccount;
-						}else 
-							printf("Account does not exist. Retype account number.");	
+						} else{
+							printf("\tAccount does not exist. Retype account number.");
+						}
+					
+					printf("33]2k\r");			
 				}while(accountExist=0);
 					
 				isSufficient = checkBalance(amount,accountNum);
@@ -1421,11 +1545,11 @@ void transfer(){
 					process(newTransaction);
 					postTransfer(newTransaction);
 				}else{
-					printf("Your balance is not sufficient to complete the transaction.");
+					printf("\tYour balance is not sufficient to complete the transaction.");
 				}
 			}while(isSufficient==0);
 			
-			printf("Successful\n");
+			printf("\tSuccessful\n");
 			
 		}else printf("\nAccount does not exist.\n");
 	}while(isExisting==0);	
@@ -1473,9 +1597,11 @@ void withdraw(){
 	Account account;
 	Transaction newTransaction;
 	
+	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: WITHDRAWAL \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n");
+	
 	do{
-		printf("Enter account number:\n");
-		scanf("%d",&accountNum);
+		printf("\n\t==Enter account number==");
+		accountNum = getUserInput();
 		
 		isExisting = searchAccount(accountNum).accNumber;
 	
@@ -1483,8 +1609,8 @@ void withdraw(){
 			float amount;
 			int isSufficient = 0;
 			do{
-				printf("Enter amount to withdraw:\n");
-				scanf("%f",&amount);
+				printf("\t\t==Enter amount to withdraw==");
+				amount = getUserFloatInput();
 				newTransaction.accNumber=accountNum;
 				newTransaction.amount=amount;
 				newTransaction.transId=transactionIdCounter+1;
@@ -1499,20 +1625,79 @@ void withdraw(){
 						int valid=0;
 						do{
 							valid=validate();
-							if(valid==1)
+							if(valid==1){
 								process(newTransaction);
-							else 
-								printf("Invalid PIN. Please try again.");	
+								system("pause");
+							} else{
+								printf("\n\tInvalid PIN. Please try again.");
+							}
+									
 						}while(valid==0);	
 					}else{
-						printf("Your balance is not sufficient to complete the transaction.");
+						printf("\tYour balance is not sufficient to complete the transaction.");
 					}
 			}while(isSufficient==0);
 			
-			printf("Successful\n");
+			printf("\tSuccessful\n");
 		
-		}else printf("\nAccount does not exist.\n");
+		}else printf("\t Account does not exist.");
+		
+		printf("\33[2K\r");
+		printf("\33[2A");
 	}while(isExisting==0);		
+}
+
+/*
+	Withdraw helper function, withdraws amount from an account number, and an amount
+	@params
+		amt amount to be withdrawn
+		accNum account Number of the user where the money will be withdrawn
+
+	@author Mark Torres 12/28/2018
+	@modified Cedric Alvaro 12/30/2018
+	just copied some code to this helper function
+	
+*/
+int withdrawAmountFrom(float amount, int accountNum){
+	Account account;
+	Transaction newTransaction;
+	int isSufficient = 0;
+	
+	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: WITHDRAWAL \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n");
+	
+	do{
+	
+		newTransaction.accNumber=accountNum;
+		newTransaction.amount=amount;
+		newTransaction.transId=transactionIdCounter+1;
+		transactionIdCounter++;
+		newTransaction.transType=1;
+		newTransaction.toAccount=NULL;
+		newTransaction.transDate=getDate();
+			
+		isSufficient = checkBalance(amount,accountNum);
+				
+		if(isSufficient==1){
+			int valid=0;
+			
+			do{
+				valid=validate();
+				if(valid==1){
+					process(newTransaction);
+					return 1;
+				} else{
+					printf("Invalid PIN. Please try again.");
+				}
+									
+			}while(valid==0);
+				
+		}else{
+			printf("Your balance is not sufficient to complete the transaction.");
+			return 0;
+		}
+		
+	}while(isSufficient==0);
+	
 }
 
 /*
@@ -1521,32 +1706,35 @@ void withdraw(){
 	
 	
 	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@modified Cedric Alvaro 12/30/2018 just format of if - else	
 */
 void deposit(){
 	
 	int accountNum;
-	
 	int isExisting=0;
+	
+	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: DEPOSIT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	while(isExisting==0){
 		
-		printf("Enter account number:\n");
-		scanf("%d",&accountNum);
+		printf("\t==Enter account number==");
+		accountNum = getUserInput();
 	
 		//		isExisting = checkAccount(accountNum);
 		isExisting = searchAccount(accountNum).accNumber;
 	
 		if(isExisting!=0){
 			float amount;
-			printf("Enter amount to deposit:\n");
-			scanf("%f",&amount);
+			printf("\tEnter amount to deposit: ");
+			amount = getUserFloatInput();
 			depositAmountTo(amount, accountNum);
 			
-			printf("Successful\n");
+			printf("\tSuccessful\n");
 			system("pause");
-		}else 
-			printf("\nAccount does not exist.\n");	
+		}else{
+			printf("\nAccount does not exist.\n");
+		} 
+				
 	}
 }
 
@@ -1640,16 +1828,18 @@ int checkBalance(float amount,int accountNum){
 	@return Dates date	
 	
 	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@modify Cedric Alvaro 12/30/2018 made it formal, to other used functions, just for formatting.
 */
 Date getDate(){
-	time_t now = time(NULL);
-   	struct tm *t = localtime(&now);
-   	Date date;
-   	date.day=t->tm_mday;
-   	date.month=t->tm_mon+1;
-   	date.year=t->tm_year+1900;
-   	return date;
+	char *localDate = new char[1024];
+    Date date;
+
+	_strdate(localDate);
+	date.month = atoi(localDate);
+	date.day = atoi(&localDate[3]);
+	date.year = atoi(&localDate[6]);
+	
+	return date;
 }
 
 /*
@@ -1696,13 +1886,12 @@ void process(Transaction newTransaction){
 */
 int validate(){
 	int pin;
-	printf("VALIDATION\nEnter pin:\n");
-	scanf("%d",&pin);
+	printf(" \t\t==VALIDATION (Enter pin)==");
+	pin = getUserInput();
 	if(pin==tellerPin) {
-	return 1;	
-	}
-	else{
-	return 0;
+		return 1;	
+	} else{
+		return 0;
 	} 
 }
 
@@ -1774,25 +1963,25 @@ void updateTransId(int latestTransId){
 */
 void postTransaction(int accNumber){
 	Account accUpdated=getAccount(accNumber);
-	printf("==================================================\n");
-	printf("Account Number: %d\n",accUpdated.accNumber);
-	printf("Name: %s,%s %s\n",accUpdated.lastName,accUpdated.firstName,accUpdated.middleName);
-	printf("==================================================\n");
-	printf("			Summary						\n");
-	printf("==================================================\n");
+	printf(" \t\t==================================================\n");
+	printf(" \tAccount Number: %d\n",accUpdated.accNumber);
+	printf(" \tName: %s,%s %s\n",accUpdated.lastName,accUpdated.firstName,accUpdated.middleName);
+	printf(" \t==================================================\n");
+	printf(" \t			Summary						\n");
+	printf(" \t==================================================\n");
 	float totalDeposits=getTotal(2,accNumber);
-		printf("D: %f\n",totalDeposits);
+		printf(" \tDeposits: %f\n",totalDeposits);
 	float totalWithdrawals=getTotal(1,accNumber);
-		printf("W: %f\n",totalWithdrawals);
+		printf(" \tWithdraws: %f\n",totalWithdrawals);
 	float totalTransfers=getTotal(3,accNumber);
-		printf("T: %f\n",totalTransfers);
+		printf(" \tTransfers: %f\n",totalTransfers);
 	
 	
 	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers);
 	
-	printf("==================================================\n");	
+	printf(" \t==================================================\n");	
 	accUpdated.balance=newBalance;
-	printf("New Balance: %f\n",accUpdated.balance);
+	printf(" \tNew Balance: %f\n",accUpdated.balance);
 	postAccountUpdate(accUpdated);
 }
 
