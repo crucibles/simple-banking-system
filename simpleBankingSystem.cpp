@@ -57,24 +57,22 @@ struct Account{
 	struct Date startDate;
 };
 
-int newAccNumber();
-char *newPin();
-int confirm();
-int count();
-void start();
-void menu();
-
 //GUI functions
 void gotoxy(int x, int y);
+void hline(int,int,int);
 void rect();
 void rect(int,int,int,int);
-void hline(int,int,int);
+void start();
+void menu();
 void vline(int,int,int);
 
 //General helper functions
+int getLatestIdFromStorage(int type);
 int getUserInput();
 char* fgetsW(char* buffer, int bufferLength, FILE *fp);
 Date getSystemDate();
+int confirm();
+int count();
 
 //Account functions
 void createAccount();
@@ -84,6 +82,8 @@ Account getAccount();
 Account searchAccount(int accNumber);
 void updateAccount();
 //Account helper functions
+int getLatestAccountId();
+char *newPin();
 void postAccount(Account);
 void postAccountUpdate(struct Account currAccount);
 void updateMenu(Account currAccount);
@@ -110,7 +110,7 @@ float getYearBalance(struct TransactionLog *transLog, Date startDate);
 void postTransaction(int accNumber);
 void postTransfer(Transaction newTransaction);
 void process(Transaction newTransaction);
-void updateTransId(int latestTransId);
+void updateIds(int latestTransId, int latestAccId);
 int validate();
 
 //Security functions
@@ -704,11 +704,6 @@ void displayAcc(int accNumber){
 	
 	user = searchAccount(accNumber);
 	
-	float totalDeposits = getTotal(2,accNumber);
-	float totalWithdrawals = getTotal(1,accNumber);
-	float totalTransfers = getTotal(3,accNumber);
-	float balance = totalDeposits - (totalWithdrawals + totalTransfers) + getInterest(user);
-	
 	if(user.accNumber != 0){
 		printf(
 			"Here are the account details:\n\n"
@@ -727,7 +722,7 @@ void displayAcc(int accNumber){
 			user.middleName, 
 			user.lastName, 
 			user.birthDate.month, user.birthDate.day, user.birthDate.year, 
-			balance, 
+			user.balance + getInterest(user), 
 			user.accType==0? "savings": "current", 
 			user.startDate.month, user.startDate.day, user.startDate.year, 
 			user.accNumber, 
@@ -839,12 +834,12 @@ void createAccount(){
 	add.startDate.day = atoi(&localDate[3]);
 	add.startDate.year = atoi(&localDate[6]);
 	
-	add.accNumber = newAccNumber();
+	add.accNumber = getLatestAccountId();
 	strcpy(add.pin, newPin());
 	
     postAccount(add);
     depositAmountTo(add.balance, add.accNumber);
-    system("cls");
+    system("pause");
 }
 
 /*
@@ -853,26 +848,13 @@ void createAccount(){
 		An integer that is the account number of a newly created account.
 		
 	@author Cedric Alvaro (12/28/2018)
+	@modified AJ Ruth Sumandang (12/28/2018)
+		- (FROM) obtaining the latest id by finding the latest account id in account.in
+		- (TO) storing the latest id in the Metadata.mt instead
+		- Reason: because if the system deletes the latest account, there would be a duplicate account #
 */
-int newAccNumber(){
-	FILE *fr;
-	fr = fopen("account.in", "r");
-	char *line = new char[1024];
-	int counter = 0;
-	int accNumber = 0;
-	
-	do{
-		if((counter - 7)%10 == 0 || counter-7 == 0){
-			fscanf(fr, "%d", &accNumber);
-		}
-		line = fgets(line, 100, fr);
-		counter ++;
-	} while(line != NULL);
-	
-	accNumber++;
-	
-	fclose(fr);
-	return accNumber;
+int getLatestAccountId(){
+	return getLatestIdFromStorage(2) + 1;
 }
 
 /*
@@ -892,7 +874,7 @@ char *newPin(){
 	do{
 		line = fgets(line, 100, fr);
 		counter ++;
-	}while(line != NULL);
+	} while(line != NULL);
 	
 	counter /= 10;
 	counter++;
@@ -1178,7 +1160,7 @@ void displayTransactionLogs(){
 			printf("Transaction ID: 	%d\n", transaction.transId);
 			printf("Account Number: 	%d\n", transaction.accNumber);
 			printf("Transaction Date: 	%d/%d/%d\n", transaction.transDate.month, transaction.transDate.day, transaction.transDate.year);
-			printf("Transaction Type: 	%s\n", transType[transaction.transType]);
+			printf("Transaction Type: 	%s\n", transType[transaction.transType - 1]);
 			printf("Transaction Amount:	%f\n", transaction.amount);
 			(transaction.toAccount != 0)? printf("Transferred to Accnt#:	%d\n\n", transaction.accNumber): printf("\n\n");
 		}
@@ -1239,7 +1221,7 @@ struct TransactionLog *getTransactionsOf(int accNumber){
 	fr = fopen(accountFileName, "r");
 	
 	if(fr == NULL){
-		printf("(err3) File account %s not found.\n", accountFileName);
+//		printf("(err3) File account %s not found.\n", accountFileName);
 		return NULL;
 	}
 	
@@ -1277,12 +1259,11 @@ struct TransactionLog *getTransactionsOf(int accNumber){
 	@author AJ Ruth Sumandang (12/28/2018)
 */
 float getInterest(Account accnt){
-	printf("<%d>\n", accnt.startDate.year);
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
 	
 	Date startDate = accnt.startDate;
-	Date currDate = getCurrentDate();
+	Date currDate = getSystemDate();
 	
 	int yearLapse = currDate.year - startDate.year;
 	float interestRate = 0;
@@ -1314,7 +1295,6 @@ float getInterest(Account accnt){
 			startDate.year -= i - 1; //decremented since the basis year must be below a year than current
 			yearBalance = getYearBalance(transLog, startDate);
 			interest +=  yearBalance * interestRate;
-			printf("Year %d: Php%f * %f = Php%f\n", startDate.year, yearBalance, interestRate, interest);
 			startDate.year++;
 		}
 	}
@@ -1417,7 +1397,7 @@ void transfer(){
 				newTransaction.transId = transactionIdCounter + 1;
 				transactionIdCounter++;
 				newTransaction.transType = 3;
-				newTransaction.transDate = getDate();
+				newTransaction.transDate = getSystemDate();
 				do{
 					printf("Transfer to:\n");
 					scanf("%d", &toAccount);
@@ -1504,7 +1484,7 @@ void withdraw(){
 				transactionIdCounter++;
 				newTransaction.transType = 1;
 				newTransaction.toAccount = NULL;
-				newTransaction.transDate = getDate();
+				newTransaction.transDate = getSystemDate();
 			
 				isSufficient = checkBalance(amount,accountNum);
 				
@@ -1584,7 +1564,7 @@ void depositAmountTo(float amount, int accountNum){
 	transactionIdCounter++;
 	newTransaction.transType = 2;
 	newTransaction.toAccount = NULL;
-	newTransaction.transDate = getDate();
+	newTransaction.transDate = getSystemDate();
 			
 	process(newTransaction);
 }
@@ -1667,7 +1647,7 @@ int checkBalance(float amount,int accountNum){
 */
 Date getSystemDate(){
 	time_t now = time(NULL);
-   	struct tm t = localtime(&now);
+   	struct tm t = *localtime(&now);
    	Date date;
    	date.day = t.tm_mday;
    	date.month = t.tm_mon + 1;
@@ -1706,7 +1686,7 @@ void process(Transaction newTransaction){
 	} 	
     fclose(fp);	
     postTransaction(newTransaction.accNumber);
-    updateTransId(newTransaction.transId);
+    updateIds(getLatestIdFromStorage(2), newTransaction.transId);
 }
 
 /*
@@ -1739,6 +1719,24 @@ int validate(){
 	@modify Mark Torres 12/28/2018	
 */
 int getLatestTransactionId(){
+	  return getLatestIdFromStorage(1);
+}
+
+/*
+	Fetches the latest transaction number from a file.
+	@params 
+		type - the type of value to retrieve from file
+			1 - Transaction
+			2 - Account
+	@returns
+		The latest ID based on received type param
+	
+	@author Mark Torres 12/28/2018
+	@modified AJ Ruth Sumandang 12/31/2018
+		- Transferred code to this function
+		- Reason: for function reusability
+*/
+int getLatestIdFromStorage(int type){
 	FILE *fp;
     char str[100];
     char filename[100] = "Metadata.mt";
@@ -1749,30 +1747,30 @@ int getLatestTransactionId(){
         printf("Could not open file %s", filename);
     } else{
     	while(fgets(str, 1000, fp) != NULL){
-  			switch(counter){
-  				case 1: {
-  					int latestId = atoi(str);
-  					fclose(fp);	
-					return latestId;
-				  }
-		 	}
+    		if(counter == type){
+    			int latestId = atoi(str);
+  				fclose(fp);	
+				return latestId;
+			}
+			
   			counter++;
 		}
 		fclose(fp);	
 	}
-	return 0;  
-   
+	return 0;
 }
 
 /*
 	Writes the latest transactionId to a file.
 	@params
 		latestTransId - the latest transaction ID
-	
+		latestAccId - the latest account ID
 	@author Mark Torres 12/28/2018
-	@modify Mark Torres 12/28/2018	
+	@modify AJ Ruth Sumandang 12/31/2018
+		- Change name from updateTransId -> updateIds
+		- Reason: to accomodate change in storage; stored latest acc. # as well	
 */
-void updateTransId(int latestTransId){
+void updateIds(int latestTransId, int latestAccId){
 	FILE *fp;
     char filename[100] = "Metadata.mt";
  
@@ -1782,6 +1780,7 @@ void updateTransId(int latestTransId){
         return;
     } else{
     	fprintf(fp, "%d\n", latestTransId);
+    	fprintf(fp, "%d", latestAccId);
     	fclose(fp);	
 	}  
 }
@@ -1796,34 +1795,33 @@ void updateTransId(int latestTransId){
 	@modify Mark Torres 12/28/2018	
 */
 void postTransaction(int accNumber){
-	Account accUpdated=getAccount(accNumber);
+	Account accUpdated = getAccount(accNumber);
 	printf("==================================================\n");
-	printf("Account Number: %d\n",accUpdated.accNumber);
-	printf("Name: %s,%s %s\n",accUpdated.lastName,accUpdated.firstName,accUpdated.middleName);
+	printf("Account Number: %d\n", accUpdated.accNumber);
+	printf("Name: %s,%s %s\n", accUpdated.lastName, accUpdated.firstName, accUpdated.middleName);
 	printf("==================================================\n");
 	printf("			Summary						\n");
 	printf("==================================================\n");
-	float totalDeposits=getTotal(2,accNumber);
-		printf("D: %f\n",totalDeposits);
-	float totalWithdrawals=getTotal(1,accNumber);
-		printf("W: %f\n",totalWithdrawals);
-	float totalTransfers=getTotal(3,accNumber);
-		printf("T: %f\n",totalTransfers);
+	float totalDeposits = getTotal(2, accNumber);
+		printf("D: %f\n", totalDeposits);
+	float totalWithdrawals = getTotal(1, accNumber);
+		printf("W: %f\n", totalWithdrawals);
+	float totalTransfers = getTotal(3, accNumber);
+		printf("T: %f\n", totalTransfers);
 	
-	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers) + getInterest(accUpdated);
+	float newBalance = totalDeposits - (totalWithdrawals + totalTransfers) + getInterest(accUpdated);
 	
 	printf("==================================================\n");	
-	accUpdated.balance=newBalance;
-	printf("New Balance: %f\n",accUpdated.balance);
+	accUpdated.balance = newBalance;
+	printf("New Balance: %f\n", accUpdated.balance);
 	postAccountUpdate(accUpdated);
 }
 
 /*
 	Gets the total deposits or withdrawals or transfers.
 	
-	@param
+	@params
 		transType - the transaction's type (1) (2) (3) (4)
-	@param2
 		acctNumber - account # of customer whose transactions are to be calculated
 	@return 
 		total balance
@@ -1834,7 +1832,7 @@ void postTransaction(int accNumber){
 
 float getTotal(int transType,int acctNumber){
 	FILE *fp;
-    char str[100];
+    char *str = new char[1024];
     char accNumber[100];
     char filename[100] ;
     int counter = 1;
@@ -1850,7 +1848,7 @@ float getTotal(int transType,int acctNumber){
         printf("Could not open file %s", filename);
         return 0;
     } else{
-    	while (fgets(str, 1000, fp) != NULL){
+    	while (fgets(str, 100, fp) != NULL){
     		switch(counter){
     			case 1:
     				transaction.transId = atoi(str);
@@ -1867,12 +1865,13 @@ float getTotal(int transType,int acctNumber){
 				case 4:
 					//DUMMY DATE (must call date transform function)
 					/* TODO (#2#): Figure out what Mark means */
-					transaction.transDate = getDate();
+					transaction.transDate = getSystemDate();
 					counter++;
 					break;
 				case 5:
 					transaction.amount = atof(str);
 					if(transaction.transType == transType){
+						
 						sum = sum + atof(str);
 						counter++;
 					}
@@ -1892,9 +1891,9 @@ float getTotal(int transType,int acctNumber){
 }
 /*
 	Retrieves the Account specified by the account number.
-	@param 
+	@params 
 		accountNum - account # of account to be retrieved
-	@return 
+	@returns 
 		retrieved account
 	
 	@author Mark Torres (12/28/2018)
