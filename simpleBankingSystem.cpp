@@ -15,12 +15,10 @@ The simple banking system can:
 
 */
 #include<stdio.h>
-#include<windows.h>
 #include<stdlib.h>
+#include<windows.h>
 #include<conio.h>
 #include<time.h>
-#include<string.h>
-#include<errno.h>
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 #define BUFFER_SIZE 100
@@ -397,6 +395,7 @@ int confirm(){
 		rect(5, 7, 75, 15);
 		gotoxy(20,10);
 		printf("\tPassword to confirm this action: ");
+		
 		char input = getch();
 		while (input != '\r' && i<=10)
 		{
@@ -769,7 +768,7 @@ void displayAcc(int accNumber){
 		
 		printf(" \t The user does not exist.\n");
 	}
-	printf("\t");
+	printf(" \t ");
 	system("pause");
 }
 
