@@ -71,6 +71,7 @@ void loadingScreen();
 void deleteInput(int num);
 
 //General helper functions
+void convertDateStringToDate(char *dateString, int *month, int *day, int *year);
 int getLatestIdFromStorage(int type);
 int getUserInput();
 float getUserFloatInput();
@@ -797,38 +798,69 @@ void postAccount(Account add){
 	displayAcc(add.accNumber);
 }
 
+/**
+	Gets input date from user.
+	Includes error checking.
+	@returns 
+		array of date where...
+			date[0] -> month
+			date[1] -> day
+			date[2] -> year
+			
+	@author Cedric Alvaro (12/30/2018)
+	@modified AJ Ruth Sumandang (12/31/2018)
+		- Moved some of the code to convertDateStringToDate() for modularity
+*/
 int *getUserDateInput(){
 
-	int *date = new int[1024], i;
-	char s[2] = "/";
-    char *token;
+	int *date = new int[1024];
     char *input = new char[1024];
 
 	do{
 		date[0] = 0;
 		date[1] = 0;
 		date[2] = 0;
-				
-		i = 0;
 		
 		printf("\33[2K\r");
 		printf("\tPlease input a valid Date: ");
 		fgetsW(input, 100, stdin);
 		deleteInput(1);
 				
-		/* get the first token */
-	    token = strtok(input, s);
-			    
-	    /* walk through other tokens */
-	    while( token != NULL ) {
-			date[i] = atoi(token);
-		   	token = strtok(NULL, s);
-		   	i++;
-		}
-						    
+		convertDateStringToDate(input, &date[0], &date[1], &date[2]);			    
 	}while(!dateChecker(date[0], date[1], date[2]));
 	
 	return date;
+}
+
+/**
+	Converts the received datestring to date & puts the result in month, day, year variable.
+	@params
+		dateString - the string to be converted
+		month - where the month result of the datestring is to be placed
+		day - where the day result of the datestring is to be placed
+		year - where the year result of the datestring is to be placed
+		
+	@author Cedric Alvaro (12/30/2018)
+	@modified AJ Ruth Sumandang (12/31/2018)
+		- Moved this code from getUserDateInput for modularity
+*/
+void convertDateStringToDate(char *dateString, int *month, int *day, int *year){
+	int i = 0;
+	char s[2] = "/";
+    char *token;
+    int date[3];
+    
+	/* get the first token */
+	token = strtok(dateString, s);
+    /* walk through other tokens */
+    while( token != NULL ) {
+		date[i] = atoi(token);
+	   	token = strtok(NULL, s);
+	   	i++;
+	};
+	*month = date[0];
+	*day = date[1];
+	*year = date[2];
 }
 
 /*
@@ -1361,22 +1393,54 @@ struct TransactionLog *getTransactionsOf(int accNumber){
 	}
 	
 	char *line = new char[1024];
+	int i = 1;
 	struct Transaction transaction;
 	
-	do{
-		fscanf(fr, "%d", &transaction.transId);
-		fscanf(fr, "%d", &transaction.transType);
-		fscanf(fr, "%d", &transaction.accNumber);
-		fscanf(fr, "%d/%d/%d", &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
-		fscanf(fr, "%f", &transaction.amount);
-		fscanf(fr, "%d", &transaction.toAccount);
-		fgets(line, 100, fr);
-				
-		struct TransactionLog *newLog = new TransactionLog;
-		newLog->transaction = transaction;
-		newLog->next = transLog;
-		transLog = newLog;
-	} while(!feof(fr) && line != NULL);
+	while(fgetsW(line,BUFFER_SIZE, fr) != NULL){
+		switch(i){
+			case 1:
+    			transaction.transId = atoi(line);
+				break;
+			case 2:
+				transaction.transType = atoi(line);
+				break;
+			case 3:
+				transaction.accNumber = atoi(line);
+				break;
+			case 4:
+				convertDateStringToDate(line, &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
+				break;
+			case 5:
+				transaction.amount = atof(line);
+				break;
+			case 6:
+				transaction.toAccount = atoi(line);
+				break;
+			case 7:
+				struct TransactionLog *newLog = new TransactionLog;
+				newLog->transaction = transaction;
+				newLog->next = transLog;
+				transLog = newLog;
+				i = 0;
+				break;
+		}
+		i++;
+	}
+	
+//	do{
+//		fscanf(fr, "%d", &transaction.transId);
+//		fscanf(fr, "%d", &transaction.transType);
+//		fscanf(fr, "%d", &transaction.accNumber);
+//		fscanf(fr, "%d/%d/%d", &transaction.transDate.month, &transaction.transDate.day, &transaction.transDate.year);
+//		fscanf(fr, "%f", &transaction.amount);
+//		fscanf(fr, "%d", &transaction.toAccount);
+//		fgets(line, 100, fr);
+//				
+//		struct TransactionLog *newLog = new TransactionLog;
+//		newLog->transaction = transaction;
+//		newLog->next = transLog;
+//		transLog = newLog;
+//	} while(!feof(fr) && line != NULL);
 	
 	fclose(fr);
 	return transLog;
@@ -1910,7 +1974,6 @@ int validate(){
 	Fetches the latest transaction number from a file.
 	@returns
 		The latest transaction ID
-	
 	@author Mark Torres (12/28/2018)	
 */
 int getLatestTransactionId(){
