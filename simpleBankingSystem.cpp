@@ -213,8 +213,8 @@ void transactions(){
 	"1.Withdraw\n\t\t"
 	"2.Deposit\n\t\t"
 	"3.Transfer Money\n\t\t"
-	"0.Go back to Main Menu\n\n\n\n\n\n\n\n\t\t"
-	"Enter your choice:");
+	"0.Go back to Main Menu\n\n\n\n\n\n\n\n\t"
+	"[Note: -1 Main Menu] ==Enter your choice==");
 	
 	rect(4, 4, 77, 15);
 	
@@ -336,7 +336,7 @@ void menu(){
 	"6.View Account Transaction Logs\n\t\t"
 	"7.Logout\n\t\t"
 	"0.Exit Program\n\n\n\n\t"
-	"==Enter your choice==");
+	"[Note: -1 Main Menu]  ==Enter your choice==");
 	rect(4, 4, 77, 15);
 	
 	gotoxy(35,18);
@@ -1172,7 +1172,7 @@ void postAccountUpdate(struct Account currAccount){
         			break;
         		case 4:
         			strcpy(lineString, "");
-        			sprintf(lineString, "%f", currAccount.balance);
+        			sprintf(lineString, "%.2f", currAccount.balance);
         			fputs(lineString, fTemp);
         			fputs("\n", fTemp);
         			break;
@@ -1252,6 +1252,10 @@ int getUserInput(){
     	while(getchar() != '\n');
 	}
 	
+	if(retval == -1){
+		menu();
+	}
+	
 	return retval;
 }
 
@@ -1300,7 +1304,7 @@ void viewTransactionLogs(){
 			printf(" Account Number: 	%d\n", transaction.accNumber);
 			printf(" Transaction Date: 	%d/%d/%d\n", transaction.transDate.month, transaction.transDate.day, transaction.transDate.year);
 			printf(" Transaction Type: 	%s\n", transType[transaction.transType - 1]);
-			printf(" Transaction Amount:	%f\n", transaction.amount);
+			printf(" Transaction Amount:	%.2f\n", transaction.amount);
 			(transaction.toAccount != 0)? printf("Transferred to Accnt#:	%d\n\n", transaction.accNumber): printf("\n\n");
 		}
 		
@@ -1867,7 +1871,7 @@ void process(Transaction newTransaction){
     	fprintf(fp,"%d\n",newTransaction.transType);
     	fprintf(fp,"%d\n",newTransaction.accNumber);
     	fprintf(fp,"%d/%d/%d\n",newTransaction.transDate.month,newTransaction.transDate.day,newTransaction.transDate.year);
-    	fprintf(fp,"%f\n",newTransaction.amount);
+    	fprintf(fp,"%.2f\n",newTransaction.amount);
     	fprintf(fp,"%d\n",newTransaction.toAccount);
     	fprintf(fp,"\n");
 	} 	
@@ -1970,18 +1974,18 @@ void postTransaction(int accNumber){
 	printf(" \t			Summary						\n");
 	printf(" \t==================================================\n");
 	float totalDeposits=getTotal(2,accNumber);
-		printf(" \tDeposits: %f\n",totalDeposits);
+		printf(" \tDeposits: %.2f\n",totalDeposits);
 	float totalWithdrawals=getTotal(1,accNumber);
-		printf(" \tWithdraws: %f\n",totalWithdrawals);
+		printf(" \tWithdraws: %.2f\n",totalWithdrawals);
 	float totalTransfers=getTotal(3,accNumber);
-		printf(" \tTransfers: %f\n",totalTransfers);
+		printf(" \tTransfers: %.2f\n",totalTransfers);
 	
 	
 	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers);
 	
 	printf(" \t==================================================\n");	
 	accUpdated.balance=newBalance;
-	printf(" \tNew Balance: %f\n",accUpdated.balance);
+	printf(" \tNew Balance: %.2f\n",accUpdated.balance);
 	postAccountUpdate(accUpdated);
 }
 
