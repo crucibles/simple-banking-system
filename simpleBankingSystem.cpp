@@ -19,6 +19,7 @@ The simple banking system can:
 #include<windows.h>
 #include<conio.h>
 #include<time.h>
+#include<string.h>
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 #define BUFFER_SIZE 100
@@ -215,6 +216,9 @@ void transactions(){
 	char choice;
 	
 	system("color 9");
+	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	printf("\n\n\t\t\tSIMPLE BANKING MANAGEMENT SYSTEM");
     printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 WELCOME TO TRANSACTIONS MENU \xB2\xB2\xB2\xB2\xB2\xB2\xB2");
     printf("\n\n\t\t"
@@ -222,7 +226,7 @@ void transactions(){
 	"2.Deposit\n\t\t"
 	"3.Transfer Money\n\t\t"
 	"0.Go back to Main Menu\n\n\n\n\n\n\n\n\t"
-	"[Note: -1 Main Menu] ==Enter your choice==");
+	"==Enter your choice==");
 	
 	rect(4, 4, 77, 15);
 	gotoxy(35,18);
@@ -319,7 +323,7 @@ void menu(){
 	int choice;
     system("cls");
     system("color 9");
-       
+	   
     printf("\n\n\t\t\tSIMPLE BANKING MANAGEMENT SYSTEM");
     printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 WELCOME TO THE MAIN MENU \xB2\xB2\xB2\xB2\xB2\xB2\xB2");
     printf("\n\n\t\t"
@@ -331,7 +335,7 @@ void menu(){
 	"6.View Account Transaction Logs\n\t\t"
 	"7.Logout\n\t\t"
 	"0.Exit Program\n\n\n\n\t"
-	"[Note: -1 Main Menu]  ==Enter your choice==");
+	"==Enter your choice==");
 	rect(4, 4, 77, 15);
 	
 	gotoxy(35,18);
@@ -450,6 +454,8 @@ void closeAccount(){
 	char choice;
 	char blank[100];
     
+    gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
     printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 CLOSING AN ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
     printf(" \tEnter the account no. of the user you want to delete: ");
     remAcc = getUserInput();
@@ -679,6 +685,7 @@ Account searchAccount(int accNumber){
 	searchedAcc.accNumber = 0;
 	FILE *fr;
 	fr = fopen("account.in", "r");
+
 	int line, i = 0;
 	char blank[100];
 
@@ -689,7 +696,6 @@ Account searchAccount(int accNumber){
 			fgets(blank, 100, fr);
 			i++;	
 		}
-		
 		fgets(searchedAcc.firstName, 100, fr);
 		fgets(searchedAcc.middleName, 100, fr);
 		fgets(searchedAcc.lastName, 100, fr);
@@ -712,6 +718,8 @@ Account searchAccount(int accNumber){
 void askAccNum(){
 	int accNumber;
 	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 SEARCH AN ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	printf(" \tEnter the account number: ");
 	scanf("%d", &accNumber);
@@ -735,15 +743,15 @@ void displayAcc(int accNumber){
 		printf(
 			" \tHere are the account details:\n\n"
 			
-			" \tFirst name:		%s"
-			" \tMiddle name:		%s"
-			" \tLast name:		%s"
-			" \tBirthDate (MM/DD/YY):	%d/%d/%d\n"
-			" \tBalance:		%.2f\n"
-			" \tAccount Type:		%s\n"
-			" \tAccount Created (MM/DD/YY): %d/%d/%d\n"
-			" \tAccount Number:		%d\n"
-			" \tAccount Pin:		%s\n\n",
+			" \tFirst name:\t\t\t%s"
+			" \tMiddle name:\t\t\t%s"
+			" \tLast name:\t\t\t%s"
+			" \tBirthDate (MM/DD/YY):\t\t%d/%d/%d\n"
+			" \tBalance:\t\t\t%.2f\n"
+			" \tAccount Type:\t\t\t%s\n"
+			" \tAccount Created (MM/DD/YY):\t%d/%d/%d\n"
+			" \tAccount Number:\t\t\t%d\n"
+			" \tAccount Pin:\t\t\t%s\n\n",
 			
 			user.firstName, 
 			user.middleName, 
@@ -793,7 +801,6 @@ void postAccount(Account add){
 	
 	fclose(fr);
 	system("cls");
-	printf("\n\t\t\t\xB2 This is the newly created account \xB2");
 	displayAcc(add.accNumber);
 }
 
@@ -917,16 +924,17 @@ void createAccount(){
 				do {
 					add.accType = getUserInput();
 					printf("\033[A");
-				}while(add.accType != 0 && add.accType != 1);
+				} while(add.accType != 0 && add.accType != 1);
 				printf("\n\n");
 				break;
 			case 5:
 				float def = add.accType==1? CURRENT_DEFAULT: SAVINGS_DEFAULT;
 
-				do{
-					add.balance = getUserFloatInput();
+				do {
+					add.balance = getUserInput();
+					printf("\033[A");
 				} while(add.balance < def);
-					
+				printf("\n\n");
 				break;
 			
 		}
@@ -942,8 +950,8 @@ void createAccount(){
 	
 	add.accNumber = getLatestAccountId();
 	strcpy(add.pin, newPin());
-	printf("\n\t");
-	
+	printf("\t");
+	system("pause");
     postAccount(add);
     depositAmountTo(add.balance, add.accNumber);
     system("cls");
@@ -990,7 +998,6 @@ char *newPin(){
 	
 	fclose(fr);
 	itoa(counter, pin, 10);
-	system("pause");
 	return pin;
 }
 
@@ -1029,7 +1036,8 @@ int count(){
 void updateAccount(){
 	int choice;
 	Account currAccount;
-	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	currAccount = getAccount();
 	
 	if(currAccount.accNumber == 0){
@@ -1154,6 +1162,10 @@ void postAccountUpdate(struct Account currAccount){
 	newLineNum = getAccNumLine(currAccount.accNumber) - 7;
 	
 	fr = fopen(accountFileName, "r");
+	if(fr == NULL){
+		printf("\n\tFile is not present.");
+		system("pause");
+	}
 	fTemp = fopen(tempFileName, "w");
 	while (fgets(line, BUFFER_SIZE, fr) != NULL){
 		// changes the lines of the account with the received currAccount
@@ -1168,17 +1180,8 @@ void postAccountUpdate(struct Account currAccount){
         		case 2: 
         			fputs(currAccount.lastName, fTemp);
         			break;
-        		case 3: 
-        			sprintf(lineString, "%d", currAccount.birthDate.month);
-        			strcat(lineString, "/");
-        			sprintf(temp, "%d", currAccount.birthDate.day);
-        			strcat(lineString, temp);
-        			strcat(lineString, "/");
-        			strcpy(temp, "");
-        			sprintf(temp, "%d", currAccount.birthDate.year);
-        			strcat(lineString, temp);
-        			fputs(lineString, fTemp);
-        			fputs("\n", fTemp);
+        		case 3:
+        			fprintf(fTemp,"%d/%d/%d\n", currAccount.birthDate.month, currAccount.birthDate.day, currAccount.birthDate.year);
         			break;
         		case 4:
         			strcpy(lineString, "");
@@ -1223,23 +1226,18 @@ void postAccountUpdate(struct Account currAccount){
 	@author AJ Ruth Sumandang (12/28/2018)
 */
 Account getAccount(){
-	int choice;
+
 	int accNumber;
 	Account currAccount;
     printf("\n\n\n\t\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 UPDATING OF ACCOUNT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	do{
-		choice  = 0;
 		printf(" \tPlease input account number to update: ");
 		accNumber = getUserInput();
 		currAccount = searchAccount(accNumber);
-	
-		if(currAccount.accNumber == 0){
-			printf(" \tInvalid input or the account does not exist. Do you want to input again or exit to main menu?\n");
-			printf(" \t[1] Input Again");
-			printf(" \t[0] Exit to Main Menu");
-		}
-	} while(choice != 0 && choice != 1);
+		printf("\33[2K\r");
+		printf("\033[A");
+	} while(currAccount.accNumber == 0);
 	
 	system("cls");
 	return currAccount;
@@ -1338,7 +1336,7 @@ void displayTransactionLogs(){
 		- added condition in while loop
 */
 struct TransactionLog *getTransactions(){
-	int choice = 0, accNumber;
+	int accNumber;
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
 	
@@ -1348,20 +1346,14 @@ struct TransactionLog *getTransactions(){
 	"\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n\n"
 	);
 	
-	do{
-		choice = 0;
-		printf(" \tInput account number to view: ");
-		accNumber = getUserInput();
-		transLog = getTransactionsOf(accNumber);
-		
-		if(transLog == NULL){
-			printf("\n\n \tInvalid input or non-existent account. Do you want to input again?\n");
-			printf(" \t[1] Input Again\n");
-			printf(" \t[0] Exit to Main Menu\n");
-			printf(" \tInput choice: ");
-			choice = getUserInput();
-		} 
-	} while(choice != 0 && choice!= 1);
+
+	printf(" \tInput account number to view: ");
+	accNumber = getUserInput();
+	transLog = getTransactionsOf(accNumber);
+	
+	if( transLog == NULL ){
+		printf("\t\tUser does not exist.\n\t");
+	}
 	
 	return transLog;
 }
@@ -1573,12 +1565,14 @@ void transfer(){
 	int accountExist = 0;
 	int toAccount;
 	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: TRANSFER MONEY \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	//loop for accepting inputs
 	do{
 		Transaction newTransaction;
-		printf("\t==Enter account number==");
+		printf("\n\t==Enter account number==");
 		accountNum = getUserInput();
 
 //		isExisting = checkAccount(accountNum);
@@ -1622,7 +1616,13 @@ void transfer(){
 			
 			printf("\tSuccessful\n");
 			
-		} else printf("\nAccount does not exist.\n");
+		}
+		
+		printf("\033[A");
+		printf("\33[2K\r");
+		printf("\033[A");
+		printf("\33[2K\r");
+		
 	} while(isExisting == 0);	
 }
 
@@ -1660,11 +1660,12 @@ void postTransfer(Transaction newTransaction){
 */
 void withdraw(){
 	int accountNum;
-	
 	int isExisting = 0;
 	Account account;
 	Transaction newTransaction;
 	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: WITHDRAWAL \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n");
 	
 	do{
@@ -1708,10 +1709,13 @@ void withdraw(){
 			
 			printf("\tSuccessful\n");
 		
-		} else printf("\t Account does not exist.");
+		}
 		
+		printf("\033[A");
 		printf("\33[2K\r");
-		printf("\33[2A");
+		printf("\033[A");
+		printf("\33[2K\r");
+		
 	}while(isExisting == 0);		
 }
 
@@ -1780,11 +1784,13 @@ void deposit(){
 	int accountNum;
 	int isExisting=0;
 	
+	gotoxy(50,0);
+    printf("[Note: -1 input to Main Menu]");
 	printf("\n\n\n\t\t\xB2\xB2\xB2\xB2\xB2\xB2\xB2 TRANSACTIONS: DEPOSIT \xB2\xB2\xB2\xB2\xB2\xB2\xB2\n\n");
 	
 	while(isExisting==0){
 		
-		printf("\t==Enter account number==");
+		printf("\n\t==Enter account number==");
 		accountNum = getUserInput();
 	
 		//		isExisting = checkAccount(accountNum);
@@ -1792,14 +1798,18 @@ void deposit(){
 	
 		if(isExisting != 0){
 			float amount;
-			printf("\tEnter amount to deposit: ");
+			printf(" \t==Enter amount to deposit==");
 			amount = getUserFloatInput();
 			depositAmountTo(amount, accountNum);
 			
-			printf("\tSuccessful\n");
+			printf(" \tSuccessful\n");
 			system("pause");
-		} else 
-			printf("\nAccount does not exist.\n");	
+		}
+		
+		printf("\033[A");
+		printf("\33[2K\r");
+		printf("\033[A");
+		printf("\33[2K\r");	
 	}
 }
 
@@ -2059,12 +2069,13 @@ void postTransaction(int accNumber){
 	printf(" \t==================================================\n");
 	printf(" \t			Summary						\n");
 	printf(" \t==================================================\n");
+	
 	float totalDeposits = getTotal(2, accNumber);
-		printf(" \tDeposits: %.2f\n", totalDeposits);
+	printf(" \tTotal Deposits: %.2f\n", totalDeposits);
 	float totalWithdrawals = getTotal(1, accNumber);
-		printf(" \tWithdraws: %.2f\n", totalWithdrawals);
+	printf(" \tTotal Withdraws: %.2f\n", totalWithdrawals);
 	float totalTransfers = getTotal(3,accNumber);
-		printf(" \tTransfers: %.2f\n", totalTransfers);
+	printf(" \tTotal Transfers: %.2f\n", totalTransfers);
 	
 	
 	float newBalance = totalDeposits - (totalWithdrawals + totalTransfers) + getInterest(accUpdated);
