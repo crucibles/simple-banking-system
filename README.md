@@ -3,20 +3,19 @@
 ## Index
 1. Introduction
 2. Features
-3. Usage
-	3.1. Software & Hardware Requirements
-	3.2. Installations
-    3.3. How to run the program
-4. Contribute
-	4.1. Coding Guidelines
-5. Support
+3. Version Control
+4. Coding Guidelines
 
 ## 1. Introduction
+This is a simple banking system especially for the bank tellers.
 ## 2. Features
-## 3. Usage
-### 3.1. Software & Hardware Requirements
-### 3.2 Installation
-### 3.3 How to Run the Program
-## 4. Contribute
-### 4.1. Coding Guidelines
-## 5. Support
+This banking system can...
+- create, edit, and delete customer accounts
+- allow customers to withdraw, 
+- let the user (teller) view accounts & transactions
+Also includes error-checking in inputs
+## 3. Contribute
+https://github.com/crucibles/simple-banking-system
+## 4. Coding Guidelines
+Located at the same directory as this README.md. 
+Name: "CodingGuidelines.md"
