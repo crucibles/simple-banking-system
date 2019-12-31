@@ -89,12 +89,12 @@ void updateMenu(Account currAccount);
 void updateProcess(int choice, struct Account currAccount);
 
 //Transaction Functions
-struct TransactionLog *getTransactionsOf(int accountNumber);
+struct TransactionLog *getTransactionsOf(int accNumber);
 void deposit();
 void depositAmountTo(float amount, int accNumber);
 void transactions();
 void transfer();
-void viewTransactionLogs();
+void displayTransactionLogs();
 void withdraw();
 //Transaction helper functions
 void askAccNum();
@@ -121,7 +121,6 @@ int transactionIdCounter=getLatestTransactionId();
 int tellerPin=1234;
 
 main(){
-
 	int i = 0,x = 1;
 	
 	gotoxy(15,15);
@@ -141,7 +140,7 @@ main(){
     system("pause");
     system("cls");
 	start();
-	
+
 	return 0;
 }
 
@@ -347,7 +346,7 @@ void menu(){
 	    	closeAccount();
 	     	break;
 	    case 6:
-	    	viewTransactionLogs();
+	    	displayTransactionLogs();
 	       	break;
 	    case 0:
 	       	start();
@@ -713,6 +712,11 @@ void displayAcc(int accNumber){
 	
 	user = searchAccount(accNumber);
 	
+	float totalDeposits=getTotal(2,accNumber);
+	float totalWithdrawals=getTotal(1,accNumber);
+	float totalTransfers=getTotal(3,accNumber);
+	float balance=totalDeposits-(totalWithdrawals+totalTransfers) + getInterest(user);
+	
 	if(user.accNumber != 0){
 		printf(
 			"Here are the account details:\n\n"
@@ -731,7 +735,7 @@ void displayAcc(int accNumber){
 			user.middleName, 
 			user.lastName, 
 			user.birthDate.month, user.birthDate.day, user.birthDate.year, 
-			user.balance, 
+			balance, 
 			user.accType==0? "savings": "current", 
 			user.startDate.month, user.startDate.day, user.startDate.year, 
 			user.accNumber, 
@@ -1106,7 +1110,7 @@ void postAccountUpdate(struct Account currAccount){
     fclose(fTemp);
     
     if(remove(accountFileName) != 0){
-    	printf("(Err1)Error in editing the file. Please contact developer for help.\n");
+    	printf("(Err1) Error in editing the file. Please contact developer for help.\n");
     	printf("|%s|\n", strerror(errno));
     	return;
 	} 
@@ -1122,13 +1126,13 @@ void postAccountUpdate(struct Account currAccount){
 */
 Account getAccount(){
 	int choice;
-	int accountNumber;
+	int accNumber;
 	Account currAccount;
 	do{
 		choice  = 0;
 		printf("Please input account number to update: ");
-		scanf("%d", &accountNumber);
-		currAccount = searchAccount(accountNumber);
+		scanf("%d", &accNumber);
+		currAccount = searchAccount(accNumber);
 	
 		if(currAccount.accNumber == 0){
 			printf("Invalid input or the account does not exist. Do you want to input again or exit to main menu?\n");
@@ -1162,7 +1166,7 @@ int getUserInput(){
 	
 	@author Sumandang, AJ Ruth (12/28/2018)
 */
-void viewTransactionLogs(){
+void displayTransactionLogs(){
 	TransactionLog *transactionLog;
 	Transaction transaction;
 	transactionLog = getTransactions();	
@@ -1192,15 +1196,15 @@ void viewTransactionLogs(){
 	@author Sumandang, AJ Ruth (12/28/2018)
 */
 struct TransactionLog *getTransactions(){
-	int choice = 0, accountNumber;
+	int choice = 0, accNumber;
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
 	
 	do{
 		choice = 0;
 		printf("Input account number to view: ");
-		scanf("%d", &accountNumber);
-		transLog = getTransactionsOf(accountNumber);
+		scanf("%d", &accNumber);
+		transLog = getTransactionsOf(accNumber);
 		
 		if(transLog == NULL){
 			printf("\n\nInvalid input or non-existent account. Do you want to input again?\n");
@@ -1214,20 +1218,26 @@ struct TransactionLog *getTransactions(){
 	return transLog;
 }
 
-
-struct TransactionLog *getTransactionsOf(int accountNumber){
+/**
+	Gets the transaction logs of customer given an account #/
+	@param accNumber the account # of the customer whose transaction logs are to be retrieved
+	@return an array of customer's transaction logs
+	
+	@author AJ Ruth Sumandang (12/28/2018)
+*/
+struct TransactionLog *getTransactionsOf(int accNumber){
 	FILE *fr;
 	char accountFileName[100];
 	
 	struct TransactionLog *transLog = new TransactionLog;
 	transLog = NULL;
-	sprintf(accountFileName, "%d", accountNumber);
+	sprintf(accountFileName, "%d", accNumber);
 	strcat(accountFileName, ".tr");
 	
 	fr = fopen(accountFileName, "r");
 	
 	if(fr == NULL){
-		printf("FILE IS NULL");
+		printf("(err3) File account %s not found.\n", accountFileName);
 		return NULL;
 	}
 	
@@ -1258,20 +1268,12 @@ struct TransactionLog *getTransactionsOf(int accountNumber){
 /**
 	Gets the interest of a given customer account.
 	@param the customer account whose interest is to be calculated
-	@return the year interest
+	@return the total interest of customer from account-creation date to present
 	
 	@author Sumandang, AJ Ruth (12/28/2018)
 */
 float getInterest(Account accnt){
-	/* TODO (#1#): AHJ: delete below if received account is okay. */
-	accnt.startDate.day = 27;
-	accnt.startDate.month = 12;
-	accnt.startDate.year = 2017;
-	accnt.accType = 1;
-	accnt.balance = 1125;
-	accnt.accNumber = 12;
-	//AHJ: end here
-		
+	printf("<%d>\n", accnt.startDate.year);
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
 	
@@ -1284,7 +1286,6 @@ float getInterest(Account accnt){
 	int yearLapse = currDate.year - startDate.year;
 	float interestRate = 0;
 	float interest = 0;
-	
 	//determines whether a year or more had passed by
 	if(yearLapse > 0){
 		if(currDate.month - startDate.month < 0){
@@ -1306,10 +1307,15 @@ float getInterest(Account accnt){
 			printf("Unknown account type. Exiting...\n");
 			return -1;
 		}
-		
-		transLog = getTransactionsOf(accnt.accNumber);
-		startDate.year -= yearLapse- 1; //decremented since the basis year must be below a year than current
-		interest = getYearBalance(transLog, startDate) * interestRate;
+		float yearBalance = 0;
+		for(int i = 1; i <= yearLapse; i++){
+			transLog = getTransactionsOf(accnt.accNumber);
+			startDate.year -= i - 1; //decremented since the basis year must be below a year than current
+			yearBalance = getYearBalance(transLog, startDate);
+			interest +=  yearBalance * interestRate;
+			printf("Year %d: Php%f * %f = Php%f\n", startDate.year, yearBalance, interestRate, interest);
+			startDate.year++;
+		}
 	}
 	
 	return interest;
@@ -1328,13 +1334,20 @@ float getYearBalance(struct TransactionLog *transLog, Date startDate){
 	float balance = 0;
 	while(transLog != NULL){
 		Transaction trans = transLog->transaction;
-		
 		if(trans.transDate.year - startDate.year == 1){
 			// if one year has passed but month did not exceed a year
 			if(trans.transDate.month < startDate.month){ 
 				balance += calculateTransactionAmount(trans.transType, trans.amount);
 			// if one year has passed but days did not exceed a year
 			} else if((trans.transDate.month == startDate.month) && (trans.transDate.day < startDate.day)){
+				balance += calculateTransactionAmount(trans.transType, trans.amount);
+			}
+		} else if(trans.transDate.year == startDate.year){
+			// if same year but more than the starting month
+			if(trans.transDate.month > startDate.month){ 
+				balance += calculateTransactionAmount(trans.transType, trans.amount);
+			// if same year, month, and day on or after the starting day
+			} else if((trans.transDate.month == startDate.month) && (trans.transDate.day >= startDate.day)){
 				balance += calculateTransactionAmount(trans.transType, trans.amount);
 			}
 		} 	
@@ -1464,7 +1477,7 @@ void postTransfer(Transaction newTransaction){
 	@modify AJ Ruth Sumandang 12/30/2018
 		(FROM) isExisting = checkAccount(accountNum); 
 		(TO) isExisting = searchAccount(accountNum).accNumber;
-		- Reason: because the previous function had a bug and using helper function is more optimal
+		- Reason: because the previous function had bugs and using helper function is more optimal
 */
 void withdraw(){
 	int accountNum;
@@ -1499,12 +1512,14 @@ void withdraw(){
 						int valid=0;
 						do{
 							valid=validate();
-							if(valid==1)
+							if(valid==1){
 								process(newTransaction);
-							else 
+								system("pause");
+							} else{
 								printf("Invalid PIN. Please try again.");	
+							} 
 						}while(valid==0);	
-					}else{
+					} else{
 						printf("Your balance is not sufficient to complete the transaction.");
 					}
 			}while(isSufficient==0);
@@ -1750,7 +1765,6 @@ int getLatestTransactionId(){
 	@modify Mark Torres 12/28/2018	
 */
 void updateTransId(int latestTransId){
-	printf("udating transId....\n");
 	FILE *fp;
     char filename[100] = "Metadata.mt";
  
@@ -1787,8 +1801,7 @@ void postTransaction(int accNumber){
 	float totalTransfers=getTotal(3,accNumber);
 		printf("T: %f\n",totalTransfers);
 	
-	
-	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers);
+	float newBalance=totalDeposits-(totalWithdrawals+totalTransfers) + getInterest(accUpdated);
 	
 	printf("==================================================\n");	
 	accUpdated.balance=newBalance;
